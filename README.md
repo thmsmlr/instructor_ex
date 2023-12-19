@@ -1,11 +1,14 @@
 # instructor_ex
+
 _Structured, Ecto outputs with OpenAI (and OSS LLMs)_
+
 ---
+
 [![KinoShell version](https://img.shields.io/hexpm/v/instructor_ex.svg)](https://hex.pm/packages/instructor_ex)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/instructor_ex/)
+[![GitHub stars](https://img.shields.io/github/stars/thmsmlr/instructor_ex.svg)](https://github.com/thmsmlr/instructor_ex/stargazers)
+[![Twitter Follow](https://img.shields.io/twitter/follow/thmsmlr?style=social)](https://twitter.com/thmsmlr)
 
-
-By: [@thmsmlr](https://twitter.com/thmsmlr)
 
 Instructor.ex is a spiritual port of the great [Instructor Python Library](https://github.com/jxnl/instructor) by [@jxnlco](https://twitter.com/jxnlco).
 This library brings structured prompting to LLMs. Instead of receiving text as output, Instructor will coax the LLM to output valid JSON that maps directly to the provided Ecto schema.
