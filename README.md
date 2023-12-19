@@ -66,6 +66,7 @@ end
 
 is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 
+# => {:ok, %SpamPredicition{class: :spam, reason: "Nigerian prince email scam", score: 0.98}}
 ```
 
 Simply create an ecto schema, optionally provide a `@doc` to the schema definition which we pass down to the LLM, then make a call to `Instructor.chat_completion/1` with contect about the task you'd like the LLM to complete.
