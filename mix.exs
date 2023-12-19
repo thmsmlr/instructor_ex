@@ -18,7 +18,8 @@ defmodule Instructor.MixProject do
       docs: [
         main: "Instructor",
         extras: ["README.md"]
-      ]
+      ],
+      package: package()
     ]
   end
 
@@ -32,8 +33,18 @@ defmodule Instructor.MixProject do
     ]
   end
 
-  defp description() do
+  defp description do
     "Structured prompting for OpenAI and OSS LLMs"
+  end
+
+  defp package do
+    [
+      maintainers: ["Thomas Millar"],
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => "https://github.com/thmsmlr/instructor_ex"
+      }
+    ]
   end
 
   # Run "mix help deps" to learn about dependencies.
