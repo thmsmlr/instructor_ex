@@ -11,6 +11,8 @@ defmodule Instructor do
     Instructor can be configured in your `config.exs` file:
 
         config :instructor, adapter: Instructor.Adapters.OpenAI
+        config :openai, api_key: "sk-........"
+        config :openai, http_options: [recv_timeout: 10 * 60 * 1000]
 
     Other adapters are Instructor.Adapters.Llamacpp
   """

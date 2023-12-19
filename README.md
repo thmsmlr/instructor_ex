@@ -73,12 +73,21 @@ Simply create an ecto schema, optionally provide a `@doc` to the schema definiti
 
 ## Installation
 
+In your mix.exs,
+
 ```elixir
 def deps do
   [
     {:instructor, "~> 0.0.1"}
   ]
 end
+```
+
+Then for configuration using the default OpenAI client,
+
+```elixir
+config :openai, api_key: "sk-........"
+config :openai, http_options: [recv_timeout: 10 * 60 * 1000]
 ```
 
 ## TODO
