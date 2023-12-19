@@ -1,4 +1,9 @@
-# Instructor.ex - Structured, Ecto outputs with OpenAI (and OSS LLMs)
+# instructor_ex
+_Structured, Ecto outputs with OpenAI (and OSS LLMs)_
+---
+[![KinoShell version](https://img.shields.io/hexpm/v/instructor_ex.svg)](https://hex.pm/packages/instructor_ex)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/instructor_ex/)
+
 
 By: [@thmsmlr](https://twitter.com/thmsmlr)
 

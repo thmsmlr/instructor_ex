@@ -9,6 +9,7 @@ defmodule Instructor.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
+      description: description(),
 
       # Docs
       name: "Instructor",
@@ -29,6 +30,10 @@ defmodule Instructor.MixProject do
     [
       extra_applications: [:logger]
     ]
+  end
+
+  defp description() do
+    "Structured prompting for OpenAI and OSS LLMs"
   end
 
   # Run "mix help deps" to learn about dependencies.
