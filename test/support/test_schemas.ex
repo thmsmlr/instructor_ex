@@ -5,7 +5,6 @@ defmodule InstructorTest.DemoWithDocumentation do
 
   Solution indirectly found here:
       https://stackoverflow.com/questions/73965602/why-cant-i-import-test-modules-directly-into-other-tests-in-elixir
-
   """
   use Ecto.Schema
 

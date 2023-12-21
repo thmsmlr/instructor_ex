@@ -9,6 +9,7 @@ _Structured, Ecto outputs with OpenAI (and OSS LLMs)_
 [![GitHub stars](https://img.shields.io/github/stars/thmsmlr/instructor_ex.svg)](https://github.com/thmsmlr/instructor_ex/stargazers)
 [![Twitter Follow](https://img.shields.io/twitter/follow/thmsmlr?style=social)](https://twitter.com/thmsmlr)
 
+<!-- Docs -->
 
 Instructor.ex is a spiritual port of the great [Instructor Python Library](https://github.com/jxnl/instructor) by [@jxnlco](https://twitter.com/jxnlco).
 This library brings structured prompting to LLMs. Instead of receiving text as output, Instructor will coax the LLM to output valid JSON that maps directly to the provided Ecto schema.
@@ -71,6 +72,23 @@ is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 
 Simply create an ecto schema, optionally provide a `@doc` to the schema definition which we pass down to the LLM, then make a call to `Instructor.chat_completion/1` with context about the task you'd like the LLM to complete.
 
+## Configuration
+
+To configure the default OpenAI adapter you can set the configuration,
+
+```elixir
+config :openai, api_key: "sk-........"
+config :openai, http_options: [recv_timeout: 10 * 60 * 1000]
+```
+
+To use a local LLM, you can install and run [llama.cpp serer](https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md) and tell instructor to use it,
+
+```elixir
+config :instructor, adapter: Instructor.Adapters.Llamacpp
+```
+
+<!-- Docs -->
+
 ## Installation
 
 In your mix.exs,
@@ -78,16 +96,9 @@ In your mix.exs,
 ```elixir
 def deps do
   [
-    {:instructor, "~> 0.0.1"}
+    {:instructor, "~> 0.0.2"}
   ]
 end
-```
-
-Then for configuration using the default OpenAI client,
-
-```elixir
-config :openai, api_key: "sk-........"
-config :openai, http_options: [recv_timeout: 10 * 60 * 1000]
 ```
 
 ## TODO
@@ -99,8 +110,10 @@ config :openai, http_options: [recv_timeout: 10 * 60 * 1000]
 - [x] Add field descriptions
 - [x] Add validators
 - [x] Add typespecs and docs
+- [ ] README, hexdocs, and hex.pm should have same README example
 - [ ] Retry Logic
 - [ ] llamacpp should handle all messages values, not just first system and first user
+- [ ] Add `llm_validator`
 - [ ] Support binaries and binary_id in JSONSchema and GBNF
 - [ ] Verify :naive_datetime support
 - [ ] Logging for Distillation / Finetuning

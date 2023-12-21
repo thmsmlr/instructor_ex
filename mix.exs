@@ -1,10 +1,16 @@
 defmodule Instructor.MixProject do
   use Mix.Project
 
+  @external_resource "README.md"
+  @version "README.md"
+           |> File.read!()
+           |> then(&Regex.run(~r/{:instructor, "~> (\d+\.\d+\.\d+)"}/, &1))
+           |> List.last()
+
   def project do
     [
       app: :instructor,
-      version: "0.0.1",
+      version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps(),

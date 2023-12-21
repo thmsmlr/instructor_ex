@@ -1,20 +1,13 @@
 defmodule Instructor do
+  @external_resource "README.md"
+
+  [_, readme_docs, _] =
+    "README.md"
+    |> File.read!()
+    |> String.split("<!-- Docs -->")
+
   @moduledoc """
-  Instructor is a library for structured prompting of LLMs.
-
-  See Instructor.chat_completion/1 for more information on how to use it.
-
-  By default we use the OpenAI adapter, but you can configure your own adapter by setting the `:adapter` config value.
-
-  ## Configuration
-
-    Instructor can be configured in your `config.exs` file:
-
-        config :instructor, adapter: Instructor.Adapters.OpenAI
-        config :openai, api_key: "sk-........"
-        config :openai, http_options: [recv_timeout: 10 * 60 * 1000]
-
-    Other adapters are Instructor.Adapters.Llamacpp
+  #{readme_docs}
   """
 
   @doc """
