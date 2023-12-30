@@ -50,6 +50,7 @@ is_spam? = fn text ->
   Instructor.chat_completion(
     model: "gpt-3.5-turbo",
     response_model: SpamPredicition,
+    max_retries: 3,
     messages: [
       %{
         role: "user",
@@ -71,6 +72,9 @@ is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 ```
 
 Simply create an ecto schema, optionally provide a `@doc` to the schema definition which we pass down to the LLM, then make a call to `Instructor.chat_completion/1` with context about the task you'd like the LLM to complete.
+You can also provide a `validate_changeset/1` function via the `use Instructor.Validator` which will provide a set of code level ecto changeset validations. You can use this in conjunction with `max_retries: 3` to automatically, iteratively go back and forth with the LLM up to `n` times with any validation errors so that it has a chance to fix them.
+
+**Curious to learn more? Unsure of how you'd use this? Check out our extensive set of [tutorials](#)**
 
 ## Configuration
 
