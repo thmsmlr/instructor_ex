@@ -12,15 +12,29 @@ defmodule Instructor.JSONSchema do
       end
 
     title = title_for(ecto_schema)
+    title_ref = "#/$defs/#{title}"
 
-    %{
-      "$defs": defs,
-      allOf: [
-        %{
-          "$ref": "#/$defs/#{title}"
-        }
-      ]
-    }
+    refs =
+      find_all_values(defs, fn
+        {_, ^title_ref} -> true
+        _ -> false
+      end)
+
+    # Remove root from defs to save tokens if it's not referenced recursively
+    {root, defs} =
+      case refs do
+        [^title_ref] -> {defs[title], defs}
+        _ -> Map.pop(defs, title)
+      end
+
+    root
+    |> then(
+      &if map_size(defs) > 0 do
+        Map.put(&1, :"$defs", defs)
+      else
+        &1
+      end
+    )
     |> Jason.encode!()
   end
 
@@ -108,15 +122,40 @@ defmodule Instructor.JSONSchema do
         type: "object",
         required: required,
         properties: properties,
-        description: fetch_ecto_schema_doc(ecto_schema)
+        description: fetch_ecto_schema_doc(ecto_schema) || ""
       }
 
     [schema | bfs_from_ecto_schema(rest, seen_schemas)]
   end
 
-  defp title_for(ecto_schema) do
+  def title_for(ecto_schema) do
     to_string(ecto_schema) |> String.trim_leading("Elixir.")
   end
+
+  # Find all values in a map or list that match a predicate
+  defp find_all_values(map, pred) when is_map(map) do
+    map
+    |> Enum.flat_map(fn
+      {key, val} ->
+        cond do
+          pred.({key, val}) ->
+            [val]
+
+          true ->
+            find_all_values(val, pred)
+        end
+    end)
+  end
+
+  defp find_all_values(list, pred) when is_list(list) do
+    list
+    |> Enum.flat_map(fn
+      val ->
+        find_all_values(val, pred)
+    end)
+  end
+
+  defp find_all_values(_, _pred), do: []
 
   defp for_type(:id), do: %{type: "integer"}
   # defp for_type(:binary_id), do: %{type: "unsupported"}
@@ -132,16 +171,16 @@ defmodule Instructor.JSONSchema do
     do: %{type: "object", additionalProperties: for_type(type)}
 
   defp for_type(:decimal), do: %{type: "number", format: "float"}
-  defp for_type(:date), do: %{type: "string"}
+  defp for_type(:date), do: %{type: "string", format: "date"}
   defp for_type(:time), do: %{type: "string"}
   defp for_type(:time_usec), do: %{type: "string"}
-  defp for_type(:naive_datetime), do: %{type: "string"}
-  defp for_type(:naive_datetime_usec), do: %{type: "string"}
-  defp for_type(:utc_datetime), do: %{type: "string"}
-  defp for_type(:utc_datetime_usec), do: %{type: "string"}
+  defp for_type(:naive_datetime), do: %{type: "string", format: "date-time"}
+  defp for_type(:naive_datetime_usec), do: %{type: "string", format: "date-time"}
+  defp for_type(:utc_datetime), do: %{type: "string", format: "date-time"}
+  defp for_type(:utc_datetime_usec), do: %{type: "string", format: "date-time"}
 
   defp for_type(
-         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}
+         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}
        ) do
     title = title_for(related)
 
@@ -153,7 +192,7 @@ defmodule Instructor.JSONSchema do
   end
 
   defp for_type(
-         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}
+         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}
        ) do
     %{"$ref": "#/$defs/#{title_for(related)}"}
   end

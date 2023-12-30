@@ -21,18 +21,13 @@ defmodule JSONSchemaTest do
 
     expected_json_schema =
       %{
-        "$defs" => %{
-          "JSONSchemaTest.Demo" => %{
-            "description" => nil,
-            "properties" => %{
-              "string" => %{"title" => "string", "type" => "string"}
-            },
-            "required" => ["string"],
-            "title" => "JSONSchemaTest.Demo",
-            "type" => "object"
-          }
+        "description" => "",
+        "properties" => %{
+          "string" => %{"title" => "string", "type" => "string"}
         },
-        "allOf" => [%{"$ref" => "#/$defs/JSONSchemaTest.Demo"}]
+        "required" => ["string"],
+        "title" => "JSONSchemaTest.Demo",
+        "type" => "object"
       }
 
     assert json_schema == expected_json_schema
@@ -53,18 +48,11 @@ defmodule JSONSchemaTest do
       |> Jason.decode!()
 
     expected_json_schema = %{
-      "$defs" => %{
-        "JSONSchemaTest.Demo" => %{
-          "description" => nil,
-          "properties" => %{
-            "string" => %{"title" => "string", "type" => "string"}
-          },
-          "required" => ["string"],
-          "title" => "JSONSchemaTest.Demo",
-          "type" => "object"
-        }
-      },
-      "allOf" => [%{"$ref" => "#/$defs/JSONSchemaTest.Demo"}]
+      "description" => "",
+      "properties" => %{"string" => %{"title" => "string", "type" => "string"}},
+      "required" => ["string"],
+      "title" => "JSONSchemaTest.Demo",
+      "type" => "object"
     }
 
     assert json_schema == expected_json_schema
@@ -77,16 +65,11 @@ defmodule JSONSchemaTest do
 
     expected_json_schema =
       %{
-        "$defs" => %{
-          "InstructorTest.DemoWithDocumentation" => %{
-            "description" => "Hello world\n",
-            "properties" => %{"string" => %{"title" => "string", "type" => "string"}},
-            "required" => ["string"],
-            "title" => "InstructorTest.DemoWithDocumentation",
-            "type" => "object"
-          }
-        },
-        "allOf" => [%{"$ref" => "#/$defs/InstructorTest.DemoWithDocumentation"}]
+        "description" => "Hello world\n",
+        "properties" => %{"string" => %{"title" => "string", "type" => "string"}},
+        "required" => ["string"],
+        "title" => "InstructorTest.DemoWithDocumentation",
+        "type" => "object"
       }
 
     assert json_schema == expected_json_schema
@@ -124,56 +107,67 @@ defmodule JSONSchemaTest do
       |> Jason.decode!()
 
     expected_json_schema = %{
-      "$defs" => %{
-        "JSONSchemaTest.Demo" => %{
-          "description" => nil,
-          "properties" => %{
-            "array" => %{"items" => %{"type" => "string"}, "title" => "array", "type" => "array"},
-            "boolean" => %{"title" => "boolean", "type" => "boolean"},
-            "date" => %{"title" => "date", "type" => "string"},
-            "decimal" => %{"format" => "float", "title" => "decimal", "type" => "number"},
-            "float" => %{"format" => "float", "title" => "float", "type" => "number"},
-            "integer" => %{"title" => "integer", "type" => "integer"},
-            "map" => %{
-              "additionalProperties" => %{"type" => "string"},
-              "title" => "map",
-              "type" => "object"
-            },
-            "map_two" => %{
-              "additionalProperties" => %{"type" => "string"},
-              "title" => "map_two",
-              "type" => "object"
-            },
-            "naive_datetime" => %{"title" => "naive_datetime", "type" => "string"},
-            "naive_datetime_usec" => %{"title" => "naive_datetime_usec", "type" => "string"},
-            "string" => %{"title" => "string", "type" => "string"},
-            "time" => %{"title" => "time", "type" => "string"},
-            "time_usec" => %{"title" => "time_usec", "type" => "string"},
-            "utc_datetime" => %{"title" => "utc_datetime", "type" => "string"},
-            "utc_datetime_usec" => %{"title" => "utc_datetime_usec", "type" => "string"}
-          },
-          "required" => [
-            "integer",
-            "date",
-            "float",
-            "time",
-            "string",
-            "map",
-            "boolean",
-            "array",
-            "decimal",
-            "map_two",
-            "time_usec",
-            "naive_datetime",
-            "naive_datetime_usec",
-            "utc_datetime",
-            "utc_datetime_usec"
-          ],
-          "title" => "JSONSchemaTest.Demo",
+      "description" => "",
+      "properties" => %{
+        "array" => %{"items" => %{"type" => "string"}, "title" => "array", "type" => "array"},
+        "boolean" => %{"title" => "boolean", "type" => "boolean"},
+        "date" => %{"title" => "date", "type" => "string", "format" => "date"},
+        "decimal" => %{"format" => "float", "title" => "decimal", "type" => "number"},
+        "float" => %{"format" => "float", "title" => "float", "type" => "number"},
+        "integer" => %{"title" => "integer", "type" => "integer"},
+        "map" => %{
+          "additionalProperties" => %{"type" => "string"},
+          "title" => "map",
           "type" => "object"
+        },
+        "map_two" => %{
+          "additionalProperties" => %{"type" => "string"},
+          "title" => "map_two",
+          "type" => "object"
+        },
+        "naive_datetime" => %{
+          "title" => "naive_datetime",
+          "type" => "string",
+          "format" => "date-time"
+        },
+        "naive_datetime_usec" => %{
+          "title" => "naive_datetime_usec",
+          "type" => "string",
+          "format" => "date-time"
+        },
+        "string" => %{"title" => "string", "type" => "string"},
+        "time" => %{"title" => "time", "type" => "string"},
+        "time_usec" => %{"title" => "time_usec", "type" => "string"},
+        "utc_datetime" => %{
+          "title" => "utc_datetime",
+          "type" => "string",
+          "format" => "date-time"
+        },
+        "utc_datetime_usec" => %{
+          "title" => "utc_datetime_usec",
+          "type" => "string",
+          "format" => "date-time"
         }
       },
-      "allOf" => [%{"$ref" => "#/$defs/JSONSchemaTest.Demo"}]
+      "required" => [
+        "integer",
+        "date",
+        "float",
+        "time",
+        "string",
+        "map",
+        "boolean",
+        "array",
+        "decimal",
+        "map_two",
+        "time_usec",
+        "naive_datetime",
+        "naive_datetime_usec",
+        "utc_datetime",
+        "utc_datetime_usec"
+      ],
+      "title" => "JSONSchemaTest.Demo",
+      "type" => "object"
     }
 
     assert json_schema == expected_json_schema
@@ -204,30 +198,21 @@ defmodule JSONSchemaTest do
 
     expected_json_schema = %{
       "$defs" => %{
-        "JSONSchemaTest.Demo" => %{
-          "description" => nil,
-          "properties" => %{
-            "embedded" => %{
-              "items" => %{"$ref" => "#/$defs/JSONSchemaTest.Embedded"},
-              "title" => "JSONSchemaTest.Embedded",
-              "type" => "array"
-            }
-          },
-          "required" => ["embedded"],
-          "title" => "JSONSchemaTest.Demo",
-          "type" => "object"
-        },
         "JSONSchemaTest.Embedded" => %{
-          "description" => nil,
-          "properties" => %{
-            "string" => %{"title" => "string", "type" => "string"}
-          },
+          "description" => "",
+          "properties" => %{"string" => %{"title" => "string", "type" => "string"}},
           "required" => ["string"],
           "title" => "JSONSchemaTest.Embedded",
           "type" => "object"
         }
       },
-      "allOf" => [%{"$ref" => "#/$defs/JSONSchemaTest.Demo"}]
+      "description" => "",
+      "properties" => %{
+        "embedded" => %{"$ref" => "#/$defs/JSONSchemaTest.Embedded", "title" => "embedded"}
+      },
+      "required" => ["embedded"],
+      "title" => "JSONSchemaTest.Demo",
+      "type" => "object"
     }
 
     assert json_schema == expected_json_schema
@@ -254,31 +239,29 @@ defmodule JSONSchemaTest do
       JSONSchema.from_ecto_schema(Demo)
       |> Jason.decode!()
 
-    expected_json_schema = %{
-      "$defs" => %{
-        "JSONSchemaTest.Demo" => %{
-          "description" => nil,
-          "properties" => %{
-            "id" => %{"title" => "id", "type" => "integer"},
-            "child" => %{"$ref" => "#/$defs/JSONSchemaTest.Child"}
-          },
-          "required" => ["id", "child"],
-          "title" => "JSONSchemaTest.Demo",
-          "type" => "object"
+    expected_json_schema =
+      %{
+        "$defs" => %{
+          "JSONSchemaTest.Child" => %{
+            "description" => "",
+            "properties" => %{
+              "id" => %{"title" => "id", "type" => "integer"},
+              "string" => %{"title" => "string", "type" => "string"}
+            },
+            "required" => ["id", "string"],
+            "title" => "JSONSchemaTest.Child",
+            "type" => "object"
+          }
         },
-        "JSONSchemaTest.Child" => %{
-          "description" => nil,
-          "properties" => %{
-            "id" => %{"title" => "id", "type" => "integer"},
-            "string" => %{"title" => "string", "type" => "string"}
-          },
-          "required" => ["id", "string"],
-          "title" => "JSONSchemaTest.Child",
-          "type" => "object"
-        }
-      },
-      "allOf" => [%{"$ref" => "#/$defs/JSONSchemaTest.Demo"}]
-    }
+        "description" => "",
+        "properties" => %{
+          "child" => %{"$ref" => "#/$defs/JSONSchemaTest.Child"},
+          "id" => %{"title" => "id", "type" => "integer"}
+        },
+        "required" => ["id", "child"],
+        "title" => "JSONSchemaTest.Demo",
+        "type" => "object"
+      }
 
     assert json_schema == expected_json_schema
   end
@@ -306,22 +289,8 @@ defmodule JSONSchemaTest do
 
     expected_json_schema = %{
       "$defs" => %{
-        "JSONSchemaTest.Demo" => %{
-          "description" => nil,
-          "properties" => %{
-            "id" => %{"title" => "id", "type" => "integer"},
-            "children" => %{
-              "items" => %{"$ref" => "#/$defs/JSONSchemaTest.Child"},
-              "title" => "JSONSchemaTest.Child",
-              "type" => "array"
-            }
-          },
-          "required" => ["id", "children"],
-          "title" => "JSONSchemaTest.Demo",
-          "type" => "object"
-        },
         "JSONSchemaTest.Child" => %{
-          "description" => nil,
+          "description" => "",
           "properties" => %{
             "id" => %{"title" => "id", "type" => "integer"},
             "string" => %{"title" => "string", "type" => "string"}
@@ -331,7 +300,18 @@ defmodule JSONSchemaTest do
           "type" => "object"
         }
       },
-      "allOf" => [%{"$ref" => "#/$defs/JSONSchemaTest.Demo"}]
+      "description" => "",
+      "properties" => %{
+        "children" => %{
+          "items" => %{"$ref" => "#/$defs/JSONSchemaTest.Child"},
+          "title" => "JSONSchemaTest.Child",
+          "type" => "array"
+        },
+        "id" => %{"title" => "id", "type" => "integer"}
+      },
+      "required" => ["id", "children"],
+      "title" => "JSONSchemaTest.Demo",
+      "type" => "object"
     }
 
     assert json_schema == expected_json_schema

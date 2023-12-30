@@ -110,12 +110,17 @@ end
 - [x] Add field descriptions
 - [x] Add validators
 - [x] Add typespecs and docs
-- [ ] README, hexdocs, and hex.pm should have same README example
-- [ ] Retry Logic
-- [ ] llamacpp should handle all messages values, not just first system and first user
+- [x] README, hexdocs, and hex.pm should have same README example
+- [ ] GBNF should enforce required properties on objects, currently they're optional.
+- [ ] GBNF limit the number of digits in number tokens -- small models can sometimes run off to infinit digits
+- [ ] Better support nullable
+- [x] Retry Logic
+- [ ] llamacpp adapter broken, needs to support openai input/output API
 - [ ] Add `llm_validator`
 - [ ] Support binaries and binary_id in JSONSchema and GBNF
-- [ ] Verify :naive_datetime support
+- [x] Verify :naive_datetime support
+- [ ] Support :binary_id
+- [x] Support OpenAI Tools AP
 - [ ] Logging for Distillation / Finetuning
 - [ ] Add a Bumblebee adapter
 - [ ] Add Livebook Tutorials, include in Hexdocs
@@ -133,7 +138,7 @@ end
     - [ ] Action Item and Dependency Mapping
     - [ ] Multi-File Code Generation
     - [ ] PII Data Sanitization
-- [ ] Update hexdocs homepage to include example for tutorial
+- [x] Update hexdocs homepage to include example for tutorial
 - [ ] Setup Github CI for testing, add badge to README
 
 ## Blog Posts

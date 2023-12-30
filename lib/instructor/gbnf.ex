@@ -20,6 +20,10 @@ defmodule Instructor.GBNF do
 
   string-char ::= [^"\\\\] | "\\\\" (["\\\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]) # escapes
 
+  # ISO8601 date format
+  date ::= [0-9]{4} "-" [0-9]{2} "-" [0-9]{2}
+  datetime ::= date "T" [0-9]{2} ":" [0-9]{2} ":" [0-9]{2} ("." [0-9]+)? ("Z" | ("+" | "-") [0-9]{2} ":" [0-9]{2})
+
   number ::= integer ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
   integer ::= "-"? ([0-9] | [1-9] [0-9]*)
   boolean ::= "true" | "false"
@@ -42,33 +46,12 @@ defmodule Instructor.GBNF do
   def from_json_schema(json_schema) do
     # defs are guaranteed to be objects.. I think..
     defs =
-      json_schema["$defs"]
+      Map.get(json_schema, "$defs", [])
       |> Enum.map_join("\n\n", fn {schema, definition} ->
-        property_gbnfs =
-          definition["properties"]
-          |> Enum.map_join("\n", fn {property, val} ->
-            "#{schema}-#{sanitize(property)} ::= \"\\\"#{property}\\\"\" \"\:\" ws01 #{for_type(val)}"
-          end)
-
-        schema_gbnf =
-          definition["properties"]
-          |> Enum.map_join(" \",\" ", fn {property, _val} ->
-            "ws01 #{schema}-#{sanitize(property)}"
-          end)
-          |> then(&" \"{\" #{&1} \"}\" ws01 ")
-
-        """
-        #{schema} ::= #{schema_gbnf}
-        #{property_gbnfs}
-        """
+        definition_to_gbnf(schema, definition)
       end)
 
-    root =
-      json_schema["allOf"]
-      |> Enum.map_join(" | ", fn %{"$ref" => ref} ->
-        ref |> String.split("/") |> Enum.at(-1)
-      end)
-      |> then(&"root ::= (#{&1}) ws01")
+    root = definition_to_gbnf("root", json_schema)
 
     """
     #{root}
@@ -77,11 +60,33 @@ defmodule Instructor.GBNF do
     """
   end
 
+  defp definition_to_gbnf(schema, definition) do
+    property_gbnfs =
+      definition["properties"]
+      |> Enum.map_join("\n", fn {property, val} ->
+        "#{schema}-#{sanitize(property)} ::= \"\\\"#{property}\\\"\" \"\:\" ws01 #{for_type(val)}"
+      end)
+
+    schema_gbnf =
+      definition["properties"]
+      |> Enum.map_join(" \",\" ", fn {property, _val} ->
+        "ws01 #{schema}-#{sanitize(property)}"
+      end)
+      |> then(&" \"{\" #{&1} \"}\" ws01 ")
+
+    """
+    #{schema} ::= #{schema_gbnf}
+    #{property_gbnfs}
+    """
+  end
+
   defp sanitize(x), do: x |> String.replace("_", "-")
 
   defp for_type(%{"type" => "integer"}), do: "integer"
   defp for_type(%{"format" => "float", "type" => "number"}), do: "number"
   defp for_type(%{"type" => "boolean"}), do: "boolean"
+  defp for_type(%{"format" => "date", "type" => "string"}), do: "date"
+  defp for_type(%{"format" => "date-time", "type" => "string"}), do: "datetime"
   defp for_type(%{"type" => "string"}), do: "string"
 
   defp for_type(%{"items" => %{"type" => type}, "title" => "array", "type" => "array"}) do

@@ -23,7 +23,11 @@ defmodule Instructor.MixProject do
       homepage_url: "https://github.com/thmsmlr/instructor_ex",
       docs: [
         main: "Instructor",
-        extras: ["README.md"]
+        extras: [
+          "README.md",
+          "notebooks/tutorial.livemd"
+        ],
+        extra_section: "GUIDES",
       ],
       package: package()
     ]
