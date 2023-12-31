@@ -1,0 +1,267 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Extracting Action Items from Meeting Transcripts
+
+```elixir
+Mix.install(
+  [
+    # {:instructor, "~> 0.0.2"}
+    {:instructor, path: "/Users/thomas/code/instructor_ex"},
+    {:kino, "~> 0.12.0"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI
+    ],
+    openai: [
+      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
+      http_options: [recv_timeout: 10 * 60 * 1000]
+    ]
+  ]
+)
+```
+
+## Motivation
+
+This example shouldn't be foreign to any of you. I'm sure each day you log in, join a Zoom call, and have a meeting about what y'all are going to do this upcoming week. It is then the work of some product manager to translate this into a JIRA board so that you can track your progress throughout the week.
+
+The bane of most engineers existence... We can automate this.
+
+## The Schema
+
+Let's start by defining a schema for the tickets and the subtasks that might exist within them. There will be a priority, description and a set of dependencies between the tasks for the tickets.
+
+```elixir
+defmodule MeetingNotes do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @doc """
+  Tickets correctly resolved from a meeting transcription.
+
+  Tickets have a name, priority, useful description, and assignees.
+  They may also have subtasks that share the same id spaces as the tickets.
+  A ticket also may have references to Tickets and Subtasks that are a blocking dependency
+  for completing the ticket.
+  """
+  @primary_key false
+  embedded_schema do
+    embeds_many :tickets, Ticket do
+      field(:name, :string)
+      field(:description, :string)
+      field(:priority, Ecto.Enum, values: [:high, :medium, :low])
+      field(:assignees, {:array, :string})
+
+      embeds_many :subtasks, SubTasks do
+        field(:name, :string)
+      end
+
+      field(:dependencies, {:array, :binary_id})
+    end
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, MeetingNotes, <<70, 79, 82, 49, 0, 0, 17, ...>>,
+ [__schema__: 1, __schema__: 1, __schema__: 1, __schema__: 1, __schema__: 2, __schema__: 2, ...]}
+```
+
+One thing interesting to note here is that although we could use proptorecto associations, in this case it's rather tedious. Since our dependencies can either be on tickets or on subtasks, you would typically have to have a polymorphic relationship.
+
+While Instructor fully supports doing that, we can instead just create embedded schemas for the subtasks and define that the subtasks and the tickets share the same ID space in our doc comment. This will steer the LLM to produce foreign key relations in a polymorphic way.
+
+One also might choose to solve this modeling problem by denormalizing the tickets and subtasks into its own task type and get the LLM to not only have the dependencies listed but also any subtasks that a ticket might have through association instead of embedding.
+
+Either way works, but in this example we prefer the embedded method because it produces a prettier output and we can lean on the LLM a little more.
+
+Now, let's extract some JIRA tickets.
+
+```elixir
+generate_tickets = fn transcript ->
+  Instructor.chat_completion(
+    model: "gpt-3.5-turbo",
+    response_model: MeetingNotes,
+    messages: [
+      %{role: "system", content: "The following is a transcript of a meeting..."},
+      %{
+        role: "user",
+        content: "Create the action items for the following transcript: #{transcript}"
+      }
+    ]
+  )
+end
+
+{:ok, %{tickets: tickets}} =
+  generate_tickets.("""
+    Alice: Hey team, we have several critical tasks we need to tackle for the upcoming release. First, we need to work on improving the authentication system. It's a top priority.
+    
+    Bob: Got it, Alice. I can take the lead on the authentication improvements. Are there any specific areas you want me to focus on?
+    
+    Alice: Good question, Bob. We need both a front-end revamp and back-end optimization. So basically, two sub-tasks.
+    
+    Carol: I can help with the front-end part of the authentication system.
+    
+    Bob: Great, Carol. I'll handle the back-end optimization then.
+    
+    Alice: Perfect. Now, after the authentication system is improved, we have to integrate it with our new billing system. That's a medium priority task.
+    
+    Carol: Is the new billing system already in place?
+    
+    Alice: No, it's actually another task. So it's a dependency for the integration task. Bob, can you also handle the billing system?
+    
+    Bob: Sure, but I'll need to complete the back-end optimization of the authentication system first, so it's dependent on that.
+    
+    Alice: Understood. Lastly, we also need to update our user documentation to reflect all these changes. It's a low-priority task but still important.
+    
+    Carol: I can take that on once the front-end changes for the authentication system are done. So, it would be dependent on that.
+    
+    Alice: Sounds like a plan. Let's get these tasks modeled out and get started.
+  """)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %MeetingNotes{
+   tickets: [
+     %MeetingNotes.Ticket{
+       id: "1",
+       name: "Authentication System Improvements",
+       description: "Work on improving the authentication system",
+       priority: :high,
+       assignees: ["Bob"],
+       subtasks: [
+         %MeetingNotes.Ticket.SubTasks{id: "1.1", name: "Front-end Revamp"},
+         %MeetingNotes.Ticket.SubTasks{id: "1.2", name: "Back-end Optimization"}
+       ],
+       dependencies: []
+     },
+     %MeetingNotes.Ticket{
+       id: "2",
+       name: "Integration with New Billing System",
+       description: "Integrate the improved authentication system with the new billing system",
+       priority: :medium,
+       assignees: ["Bob"],
+       subtasks: [],
+       dependencies: ["1"]
+     },
+     %MeetingNotes.Ticket{
+       id: "3",
+       name: "Update User Documentation",
+       description: "Update the user documentation to reflect the changes",
+       priority: :low,
+       assignees: ["Carol"],
+       subtasks: [],
+       dependencies: ["1.1"]
+     }
+   ]
+ }}
+```
+
+The results look good. We can use Kino to then render out all the dependencies of our tickets.
+
+```elixir
+generate_tickets_diagram = fn tickets ->
+  subtasks = Enum.flat_map(tickets, & &1.subtasks)
+  all_tasks = subtasks ++ tickets
+
+  ticket_nodes =
+    tickets
+    |> Enum.map_join("\n", fn t ->
+      subtask_relations =
+        t.subtasks
+        |> Enum.map_join("\n", fn st ->
+          """
+          "#{t.name}" ||--o| "#{st.name}" : "Has Subtask"
+          """
+        end)
+
+      dependency_relations =
+        t.dependencies
+        |> Enum.map_join("\n", fn d ->
+          dt = all_tasks |> Enum.find(&(&1.id == d))
+
+          if dt do
+            """
+            "#{t.name}" ||--o| "#{dt.name}" : "Depends on"
+            """
+          else
+            ""
+          end
+        end)
+
+      """
+        "#{t.name}" {
+          priority #{t.priority}
+          assignees #{Enum.join(t.assignees, ", ")}
+        }
+
+        #{subtask_relations}
+        #{dependency_relations}
+      """
+    end)
+
+  subtask_nodes =
+    tickets
+    |> Enum.flat_map(& &1.subtasks)
+    |> Enum.map_join("\n", fn st ->
+      """
+        "#{st.name}"
+      """
+    end)
+
+  Kino.Mermaid.new("""
+    erDiagram
+      #{ticket_nodes}
+      #{subtask_nodes}
+  """)
+end
+
+generate_tickets_diagram.(tickets)
+```
+
+<!-- livebook:{"output":true} -->
+
+```mermaid
+  erDiagram
+      "Authentication System Improvements" {
+    priority high
+    assignees Bob
+  }
+
+  "Authentication System Improvements" ||--o| "Front-end Revamp" : "Has Subtask"
+
+"Authentication System Improvements" ||--o| "Back-end Optimization" : "Has Subtask"
+
+  
+
+  "Integration with New Billing System" {
+    priority medium
+    assignees Bob
+  }
+
+  
+  "Integration with New Billing System" ||--o| "Authentication System Improvements" : "Depends on"
+
+
+  "Update User Documentation" {
+    priority low
+    assignees Carol
+  }
+
+  
+  "Update User Documentation" ||--o| "Front-end Revamp" : "Depends on"
+
+
+      "Front-end Revamp"
+
+  "Back-end Optimization"
+
+
+```
+
+<!-- livebook:{"offset":8073,"stamp":{"token":"XCP.vkrpNsM3ujE-1FXrpLCr5bzzctBzwp-Y0IFkMjDs3rVsBRJHvwGphPkufT34Fl8fOk0IOr3iLCZ1jylSlDn484FDRA_JObP7KeWbLe4pzrBsl9Rs8GVyJZo","version":2}} -->

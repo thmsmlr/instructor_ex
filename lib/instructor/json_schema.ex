@@ -158,7 +158,7 @@ defmodule Instructor.JSONSchema do
   defp find_all_values(_, _pred), do: []
 
   defp for_type(:id), do: %{type: "integer"}
-  # defp for_type(:binary_id), do: %{type: "unsupported"}
+  defp for_type(:binary_id), do: %{type: "string"}
   defp for_type(:integer), do: %{type: "integer"}
   defp for_type(:float), do: %{type: "number", format: "float"}
   defp for_type(:boolean), do: %{type: "boolean"}
