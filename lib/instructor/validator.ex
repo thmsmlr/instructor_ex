@@ -46,8 +46,10 @@ defmodule Instructor.Validator do
     }}
   """
   @callback validate_changeset(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  @callback validate_changeset(Ecto.Changeset.t(), Map.t()) :: Ecto.Changeset.t()
   @optional_callbacks [
-    validate_changeset: 1
+    validate_changeset: 1,
+    validate_changeset: 2
   ]
 
   defmacro __using__(_) do

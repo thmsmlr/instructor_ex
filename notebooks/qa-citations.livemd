@@ -1,0 +1,313 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Question & Answer with Citations
+
+```elixir
+Mix.install(
+  [
+    # {:instructor, "~> 0.0.2"}
+    {:instructor, path: "/Users/thomas/code/instructor_ex"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI
+    ],
+    openai: [
+      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
+      http_options: [recv_timeout: 10 * 60 * 1000]
+    ]
+  ]
+)
+```
+
+## Motivation
+
+Hallucinations are a concern with large language models. You can often ask questions and get back seemingly correct responses, but when you actually try to do quality control, you'll notice that the results are false. They just sound plausible.
+
+One way to mitigate these shortfalls in the technology is to get the language model to provide evidence and citations to back up its answers. You can then use standard ecto changeset validation techniques to ensure that the citations also show up in the answer and the source text.
+
+## Basic Substring Validation
+
+In the simplest example of this, we can just write a validation that ensures the citation provided is found in the provided text.
+
+We can do this pretty easily with instructor because the `validate_changeset/2` callback is optionally provided a context which you can specify for each completion.
+
+```elixir
+defmodule QuestionAnswer do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @doc """
+  A question/answer pair with full citations from the provided supporting text.
+  citations should include the relevant facts related to answering the question
+  and quotes from the supplied text.
+  """
+  @primary_key false
+  embedded_schema do
+    field(:question, :string)
+
+    embeds_many :answer, Citation, primary_key: false do
+      field(:statement, :string)
+      field(:quote, :string)
+    end
+  end
+
+  @impl true
+  @doc """
+  Notice here we're getting a context? 
+  We can define this value later in the `Instructor.chat_completion/1` call
+  """
+  def validate_changeset(changeset, %{document: _document} = context) do
+    changeset
+    |> Ecto.Changeset.cast_embed(:answer,
+      with: fn params, attrs ->
+        validate_answer(context, params, attrs)
+      end
+    )
+  end
+
+  def validate_answer(%{document: document}, params, attrs \\ %{}) do
+    params
+    |> Ecto.Changeset.cast(attrs, [:statement, :quote])
+    |> Ecto.Changeset.validate_length(:quote, min: 1)
+    |> Ecto.Changeset.validate_change(:quote, fn :quote, q ->
+      if String.contains?(document, q) do
+        []
+      else
+        [quote: "Quote must be an exact substring of the provided text"]
+      end
+    end)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, QuestionAnswer, <<70, 79, 82, 49, 0, 0, 23, ...>>, {:validate_answer, 3}}
+```
+
+Notice something interesting about this code. While we provide a validation for the change set, Instructor by default will also cast all of the embedded and associated schemas. We can override that validation of associated schemas by using the `Ecto.Changeset.cast_embed/3` function with the `with:` option.
+
+This unfortunately won't automatically cast its attributes, but at this point you're in familiar territory with what you should be used to operating in with plain old Ecto schemas.
+
+If at this point you don't want to fully eject from instructor, you could instead of using `Ecto.Changeset.cast_embed`, you could use `Ecto.Changeset.validate_changes(:answer, ...)` and validate the embedded changesets manually there. Both are perfectly fine.
+
+Now let's see how it responds to a question about me. Referencing my personal website.
+
+```elixir
+answer_with_citations = fn question, context ->
+  Instructor.chat_completion(
+    model: "gpt-3.5-turbo",
+    response_model: QuestionAnswer,
+    max_retries: 2,
+    validation_context: %{
+      document: context
+    },
+    messages: [
+      %{
+        role: "system",
+        content:
+          "You are a world class algorithm to answer questions with correct and exact citations."
+      },
+      %{
+        role: "user",
+        content: "#{context}"
+      },
+      %{
+        role: "user",
+        content: "Question: #{question}"
+      }
+    ]
+  )
+end
+
+question = "What companies and what side projects has the author worked on?"
+
+context = """
+[excerpt from Thomas Millar's personal website]
+
+I have been a software engineer for the last 14 years.
+Over that time I have worked at Mortar Data (acquired by DataDog), and Stitch Fix building data platforms and doing MLOps.
+During these years at Stitch Fix, and in University I became close friends with Jason Liu the original author of the Python instructor library.
+
+On the side, I have built projects like billclintonswag.com and 12ft.io which cumulatively have reached over 50M+ people directly.
+My project's have even been written up in Oprah Magazine.
+
+These days, I'm all in on Elixir.
+I think it's poised to be the most productive stack for SaaS companies going forward.
+I am focusing my time on building products using Elixir and developing the surrounding ecosystem.
+If you'd like to follow me on this journey.
+Check back here for regular updates on Elixir and general thoughts about software engineering.
+You can also follow me on  @thmsmlr.
+"""
+
+answer_with_citations.(question, context)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %QuestionAnswer{
+   question: "What companies and side projects has the author worked on?",
+   answer: [
+     %QuestionAnswer.Citation{
+       statement: "The author has worked at Mortar Data (acquired by DataDog) and Stitch Fix.",
+       quote: "Over that time I have worked at Mortar Data (acquired by DataDog), and Stitch Fix building data platforms and doing MLOps."
+     },
+     %QuestionAnswer.Citation{
+       statement: "The author has worked on side projects like billclintonswag.com and 12ft.io.",
+       quote: "On the side, I have built projects like billclintonswag.com and 12ft.io which cumulatively have reached over 50M+ people directly."
+     }
+   ]
+ }}
+```
+
+## Using the LLM for Validation
+
+While this certainly works, you don't really have a strong confidence that the citation is actually relevant, even if it is found in the base text. However, the beauty of Instructor is that you can employ it recursively in your validators to check its own work.
+
+So in this example, we're going to write a custom validator for the citations that check against the base text with the LLM to ensure that it is semantically relevant, not just present.
+
+```elixir
+defmodule CitationValidation do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @doc """
+  Whether or not a citation for a given text is valid.
+  Optionally you can provide an error_message to when the citation is invalid.
+  """
+  @primary_key false
+  embedded_schema do
+    field(:is_valid?, :boolean)
+    field(:error_message, :string)
+  end
+
+  def changeset(params, attrs \\ %{}) do
+    params
+    |> Ecto.Changeset.cast(attrs, [:is_valid?, :error_message])
+  end
+end
+
+defmodule LLMQuestionAnswer do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @doc """
+  A question/answer pair with full citations from the provided supporting text.
+  citations should include the relevant facts related to answering the question
+  and quotes from the supplied text.
+  """
+  @primary_key false
+  embedded_schema do
+    field(:question, :string)
+
+    embeds_many :answer, Citation, primary_key: false do
+      field(:statement, :string)
+      field(:quote, :string)
+    end
+  end
+
+  @impl true
+  def validate_changeset(changeset, %{document: _document} = context) do
+    changeset
+    |> Ecto.Changeset.cast_embed(:answer,
+      with: fn params, attrs ->
+        validate_answer(context, params, attrs)
+      end
+    )
+  end
+
+  def validate_answer(%{document: document}, params, attrs \\ %{}) do
+    params
+    |> Ecto.Changeset.cast(attrs, [:statement, :quote])
+    |> Ecto.Changeset.validate_length(:quote, min: 1)
+    |> Ecto.Changeset.validate_change(:quote, fn :quote, q ->
+      case Instructor.chat_completion(
+             model: "gpt-3.5-turbo",
+             response_model: CitationValidation,
+             max_retries: 3,
+             messages: [
+               %{
+                 role: "user",
+                 content: """
+                   Does the following citation exist in the following document?
+                   It is okay if the citation is slightly wrong, but semantically correct.
+
+                   Citation: #{q}
+
+                   Context: #{document}
+                 """
+               }
+             ]
+           ) do
+        {:ok, %CitationValidation{is_valid?: true}} -> []
+        {:ok, %CitationValidation{is_valid?: false, error_message: err}} -> [err]
+      end
+    end)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, LLMQuestionAnswer, <<70, 79, 82, 49, 0, 0, 26, ...>>, {:validate_answer, 3}}
+```
+
+Notice here that we relaxed the requirement that it must exactly be in the base text. Rather the citation can just be semantically represented. This allows us to be a little more fuzzy with our validations.
+
+Let's induce a hypothetical invalid changeset so that we can test our validations.
+
+```elixir
+# Simulated response from the LLM
+params = %{
+  question: "What is the capital of France?",
+  answer: [
+    %{
+      statement: "Paris",
+      quote: "Paris is the capital of France"
+    }
+  ]
+}
+
+# Internally Instructor makes this call with the result of the LLM to create
+# the changeset that it'll later validate.
+changeset = Instructor.cast_all(%LLMQuestionAnswer{}, params)
+
+%Ecto.Changeset{valid?: true} =
+  LLMQuestionAnswer.validate_changeset(changeset, %{
+    document: """
+      Thomas likes to golf
+      Paris is the capital city of France
+      Some other irrelevant text
+    """
+  })
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Ecto.Changeset<
+  action: nil,
+  changes: %{
+    question: "What is the capital of France?",
+    answer: [
+      #Ecto.Changeset<
+        action: :insert,
+        changes: %{quote: "Paris is the capital of France", statement: "Paris"},
+        errors: [],
+        data: #LLMQuestionAnswer.Citation<>,
+        valid?: true
+      >
+    ]
+  },
+  errors: [],
+  data: #LLMQuestionAnswer<>,
+  valid?: true
+>
+```
+
+<!-- livebook:{"offset":10147,"stamp":{"token":"XCP.JI6HEUID3iBF1SRBmL0SrXPKpyb3dP-s9gmuvPIWr0qxR3ORPBCUBWkSWB5jbOM8lV4fzP87yadpye1JrYrkL3KYBkuVrerZ7EU_wkSkLZpoHIAe_XBJB6I","version":2}} -->

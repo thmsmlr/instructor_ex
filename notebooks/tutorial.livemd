@@ -5,8 +5,7 @@
 ```elixir
 Mix.install(
   [
-    # {:instructor, "~> 0.0.2"}
-    {:instructor, path: "/Users/thomas/code/instructor_ex"}
+    {:instructor, ">= 0.0.2"}
   ],
   config: [
     instructor: [
@@ -93,26 +92,12 @@ Instructor.chat_completion(
 <!-- livebook:{"output":true} -->
 
 ```
-{:error,
- #Ecto.Changeset<
-   action: nil,
-   changes: %{
-     first_name: "Joe",
-     last_name: "Biden",
-     offices_held: [
-       #Ecto.Changeset<
-         action: :insert,
-         changes: %{office: :president, from_date: ~D[2021-01-20]},
-         errors: [to_date: {"is invalid", [type: :date, validation: :cast]}],
-         data: #Politician.Office<>,
-         valid?: false
-       >
-     ]
-   },
-   errors: [],
-   data: #Politician<>,
-   valid?: false
- >}
+{:ok,
+ %Politician{
+   first_name: "Joe",
+   last_name: "Biden",
+   offices_held: [%Politician.Office{office: :president, from_date: ~D[2021-01-20], to_date: nil}]
+ }}
 ```
 
 Amazing, right? Using nothing more than one of the top libraries in Elixir, Ecto, we were able to get structured output from our LLM. The data returned is ready to be processed by our regular Elixir code. Instructor supports all field types that you can express in Ecto, including embedded and associated schemas.
@@ -208,8 +193,7 @@ Instructor.chat_completion(
 
 ```
 
-21:36:54.810 [debug] Retrying LLM call for Elixir.NumberSeries...
-
+21:57:57.454 [debug] Retrying LLM call for Elixir.NumberSeries...
 ```
 
 <!-- livebook:{"output":true} -->
@@ -218,4 +202,4 @@ Instructor.chat_completion(
 {:ok, %NumberSeries{series: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]}}
 ```
 
-<!-- livebook:{"offset":7027,"stamp":{"token":"XCP.K4lM2RF9aHbWXus5rF49n4QOEk359bZ6KzBPROMyev_3KLxFvOL3RoYkEhdybgzOaRBqv0gQ1IkXBfstKZ7TqXe69unuaqhAU_9anxT6wXJSiqa8-UtQFA8","version":2}} -->
+<!-- livebook:{"offset":6666,"stamp":{"token":"XCP.xJU0hP-ecx8h-1vD8IRMpctYsOF04sfCcNyrtvzPxbSxQR7mZJfqRIDQXsEwJgSpnmi2abFDwxttXR_WyKI2wYdKnYDLo10lUJnrq8EBbOqpRSaeF2c8vdc","version":2}} -->

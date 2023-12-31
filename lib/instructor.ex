@@ -47,36 +47,59 @@ defmodule Instructor do
   @spec chat_completion(Keyword.t()) ::
           {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()} | {:error, String.t()}
   def chat_completion(params) do
-    response_model = Keyword.get(params, :response_model)
-
-    validate =
-      if function_exported?(response_model, :validate_changeset, 1) do
-        &response_model.validate_changeset/1
-      else
-        fn x -> x end
-      end
-
     params =
       params
-      |> Keyword.put(:validate, validate)
       |> Keyword.put_new(:max_retries, 0)
       |> Keyword.put_new(:mode, :tools)
 
     do_chat_completion(params)
   end
 
+  def cast_all(schema, params) do
+    response_model = schema.__struct__
+    fields = response_model.__schema__(:fields) |> MapSet.new()
+    embedded_fields = response_model.__schema__(:embeds) |> MapSet.new()
+    associated_fields = response_model.__schema__(:associations) |> MapSet.new()
+
+    fields =
+      fields
+      |> MapSet.difference(embedded_fields)
+      |> MapSet.difference(associated_fields)
+
+    changeset =
+      schema
+      |> Ecto.Changeset.cast(params, fields |> MapSet.to_list())
+
+    changeset =
+      for field <- embedded_fields, reduce: changeset do
+        changeset ->
+          changeset
+          |> Ecto.Changeset.cast_embed(field, with: &cast_all/2)
+      end
+
+    changeset =
+      for field <- associated_fields, reduce: changeset do
+        changeset ->
+          changeset
+          |> Ecto.Changeset.cast_assoc(field, with: &cast_all/2)
+      end
+
+    changeset
+  end
+
+
   defp do_chat_completion(params) do
-    response_model = params[:response_model]
-    validate = params[:validate]
-    max_retries = params[:max_retries]
+    response_model = Keyword.fetch!(params, :response_model)
+    validation_context = Keyword.get(params, :validation_context, %{})
+    max_retries = Keyword.get(params, :max_retries)
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_tool(mode, params)
 
     with {:llm, {:ok, response}} <- {:llm, adapter().chat_completion(params)},
          {:valid_json, {:ok, params}} <- {:valid_json, parse_response_for_mode(mode, response)},
-         changeset <- to_changeset(response_model.__struct__(), params),
+         changeset <- cast_all(response_model.__struct__(), params),
          {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
-           {:validation, validate.(changeset), response} do
+           {:validation, call_validate(response_model, changeset, validation_context), response} do
       {:ok, changeset |> Ecto.Changeset.apply_changes()}
     else
       {:llm, {:error, error}} ->
@@ -87,7 +110,7 @@ defmodule Instructor do
 
       {:validation, changeset, response} ->
         if max_retries > 0 do
-          errors = format_errors(changeset)
+          errors = Instructor.ErrorFormatter.format_errors(changeset)
           Logger.debug("Retrying LLM call for #{response_model}...", errors: errors)
 
           params =
@@ -133,41 +156,29 @@ defmodule Instructor do
     Jason.decode(args)
   end
 
-  defp echo_response(%{choices: [%{"message" => %{"tool_calls" => [function]}}]}) do
+  defp echo_response(%{
+         choices: [
+           %{
+             "message" =>
+               %{
+                 "tool_calls" => [
+                   %{"id" => tool_call_id, "function" => %{"name" => name, "arguments" => args}} =
+                     function
+                 ]
+               } = message
+           }
+         ]
+       }) do
     [
+      Map.put(message, "content", function |> Jason.encode!()),
       %{
-        role: "assistant",
-        content: Jason.encode!(function)
+        role: "tool",
+        tool_call_id: tool_call_id,
+        name: name,
+        content: args
       }
     ]
   end
-
-  #
-  # Though technically correct for the tools api, seems to yield worse results.
-  # Leaving here to investigate further later.
-  # defp echo_response(%{
-  #        choices: [
-  #          %{
-  #            "message" =>
-  #              %{
-  #                "tool_calls" => [
-  #                  %{"id" => tool_call_id, "function" => %{"name" => name, "arguments" => args}} =
-  #                    function
-  #                ]
-  #              } = message
-  #          }
-  #        ]
-  #      }) do
-  #   [
-  #     Map.put(message, "content", function |> Jason.encode!()),
-  #     %{
-  #       role: "tool",
-  #       tool_call_id: tool_call_id,
-  #       name: name,
-  #       content: args
-  #     }
-  #   ]
-  # end
 
   defp params_for_tool(:tools, params) do
     response_model = Keyword.fetch!(params, :response_model)
@@ -207,52 +218,17 @@ defmodule Instructor do
     params
   end
 
-  defp to_changeset(schema, params) do
-    response_model = schema.__struct__
-    fields = response_model.__schema__(:fields) |> MapSet.new()
-    embedded_fields = response_model.__schema__(:embeds) |> MapSet.new()
-    associated_fields = response_model.__schema__(:associations) |> MapSet.new()
+  defp call_validate(response_model, changeset, context) do
+    cond do
+      function_exported?(response_model, :validate_changeset, 1) ->
+        response_model.validate_changeset(changeset)
 
-    fields =
-      fields
-      |> MapSet.difference(embedded_fields)
-      |> MapSet.difference(associated_fields)
+      function_exported?(response_model, :validate_changeset, 2) ->
+        response_model.validate_changeset(changeset, context)
 
-    changeset =
-      schema
-      |> Ecto.Changeset.cast(params, fields |> MapSet.to_list())
-
-    changeset =
-      for field <- embedded_fields, reduce: changeset do
-        changeset ->
-          changeset
-          |> Ecto.Changeset.cast_embed(field, with: &to_changeset/2)
-      end
-
-    changeset =
-      for field <- associated_fields, reduce: changeset do
-        changeset ->
-          changeset
-          |> Ecto.Changeset.cast_assoc(field, with: &to_changeset/2)
-      end
-
-    changeset
-  end
-
-  defp format_errors(changeset) do
-    errors =
-      Ecto.Changeset.traverse_errors(changeset, fn _changeset, _field, {msg, opts} ->
-        msg =
-          Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
-            opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
-          end)
-
-        "#{msg}"
-      end)
-      |> Map.values()
-      |> List.flatten()
-
-    Enum.join(errors, ", and ")
+      true ->
+        changeset
+    end
   end
 
   defp adapter() do

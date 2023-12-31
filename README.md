@@ -107,32 +107,26 @@ end
 
 ## TODO
 
-- [x] Tests
-    - [x] JSONSchema
-    - [x] gbnf
-- [x] Add JSONSchema --> GBNF computation
-- [x] Add field descriptions
-- [x] Add validators
-- [x] Add typespecs and docs
-- [x] README, hexdocs, and hex.pm should have same README example
-- [ ] GBNF should enforce required properties on objects, currently they're optional.
-- [ ] GBNF limit the number of digits in number tokens -- small models can sometimes run off to infinit digits
-- [ ] Better support nullable
-- [x] Retry Logic
 - [ ] llamacpp adapter broken, needs to support openai input/output API
+  - [ ] GBNF should enforce required properties on objects, currently they're optional.
+  - [ ] GBNF limit the number of digits in number tokens -- small models can sometimes run off to infinit digits
 - [ ] Add `llm_validator`
 - [ ] Support binaries and binary_id in JSONSchema and GBNF
 - [x] Verify :naive_datetime support
-- [ ] Support :binary_id
+  - [ ] field descriptor specifying the ISO format
 - [x] Support OpenAI Tools AP
 - [ ] Logging for Distillation / Finetuning
 - [ ] Add a Bumblebee adapter
+- [ ] Support Streaming
+- [ ] Optional/Maybe types
+- [ ] Verify Ecto Schemaless, add tests
+- [x] Add Validation Context
 - [ ] Add Livebook Tutorials, include in Hexdocs
-    - [ ] Text Classification
+    - [x] Text Classification
     - [ ] Self Critique
     - [ ] Image Extracting Tables
     - [ ] Moderation
-    - [ ] Citations
+    - [x] Citations
     - [ ] Knowledge Graph
     - [ ] Entity Resolution
     - [ ] Search Queries

@@ -1,0 +1,120 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Text Classification
+
+```elixir
+Mix.install(
+  [
+    {:instructor, "~> 0.0.2"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI
+    ],
+    openai: [
+      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
+      http_options: [recv_timeout: 10 * 60 * 1000]
+    ]
+  ]
+)
+```
+
+## Motivation
+
+Text classification is a common task in NLP and broadly applicable across software. Whether it be spam detection, or support ticket categorization, NLP is at the core. Historically, this required training custom, bespoke models that required collecting thousands of pre-labeled examples. With LLMs a lot of this knowledge is already encoded into the model. With proper instruction and guiding the output to a known set of classifications using GPT you can be up and running with a text classification model in no time.
+
+Hell, you can even use instructor to help generate the training set to train your own more efficient model. But let's not get ahead of ourselves, there's more on that later in the tutorials.
+
+## Binary Text Classification
+
+Spam detection is a classic example of binary text classification. It's as simple as returning a true / false of whether an example is in the class. This is pretty trivial to implement in instructor.
+
+```elixir
+defmodule SpamClassification do
+  use Ecto.Schema
+
+  @doc """
+  A classification of whether or not a provided email is spam or not
+  """
+  @primary_key false
+  embedded_schema do
+    field(:is_spam?, :boolean)
+  end
+end
+
+is_spam? = fn text ->
+  {:ok, %{is_spam?: result}} =
+    Instructor.chat_completion(
+      model: "gpt-3.5-turbo",
+      response_model: SpamClassification,
+      messages: [
+        %{
+          role: "user",
+          content: "Classify the following text as spam/not_spam: #{text}"
+        }
+      ]
+    )
+
+  result
+end
+
+is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+true
+```
+
+## Multi-Class Text Classification
+
+We don't have to stop just at a boolean inclusion, we can also easily extend this idea to multiple categories or classes that we can classify the text into. In this example, let's consider classifying support emails. We want to know whether it's a `general_inquiry`, `billing_issue`, or a `technical_issue` perhaps it rightly fits in multiple classes. This can be useful if we want to cc' specialized support agents when intersecting customer issues occur
+
+We can leverage `Ecto.Enum` to define a schema that restricts the LLM output to be a list one of those values. We can also provide a `@doc` description to help guide the LLM with the semantic understanding of what these classifications ought to represent.
+
+```elixir
+defmodule EmailClassifications do
+  use Ecto.Schema
+
+  @doc """
+  A classification of a customer support email.
+
+  technical_issue - whether the user is having trouble accessing their account.
+  billing_issue - whether the customer is having trouble managing their billing or credit card
+  general_inquiry - all other issues
+  """
+  @primary_key false
+  embedded_schema do
+    field(:tags, {:array, Ecto.Enum},
+      values: [:general_inquiry, :billing_issue, :technical_issue]
+    )
+  end
+end
+
+classify_email = fn text ->
+  {:ok, %{tags: result}} =
+    Instructor.chat_completion(
+      model: "gpt-3.5-turbo",
+      response_model: EmailClassifications,
+      messages: [
+        %{
+          role: "user",
+          content: "Classify the following text: #{text}"
+        }
+      ]
+    )
+
+  result
+end
+
+classify_email.("My account is locked and I can't access my billing info.")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[:technical_issue, :billing_issue]
+```
+
+<!-- livebook:{"offset":3715,"stamp":{"token":"XCP.5TEM1YsHThC1nSHs6aMACbc9nSINfaTw-AQHdMj8mhASbpSXy0vET32EAGwwrjDer0tOheln-yInCPR3IuLXR8U8Ytq84j9lNIhF9sQAafqSS532tBie-4E","version":2}} -->

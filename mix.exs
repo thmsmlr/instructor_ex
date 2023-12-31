@@ -25,7 +25,8 @@ defmodule Instructor.MixProject do
         main: "Instructor",
         extras: [
           "README.md",
-          "notebooks/tutorial.livemd"
+          "notebooks/tutorial.livemd",
+          "notebooks/text-classification.livemd"
         ],
         extra_section: "GUIDES",
       ],
