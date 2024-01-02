@@ -11,7 +11,7 @@ _Structured, Ecto outputs with OpenAI (and OSS LLMs)_
 
 <!-- Docs -->
 
-Instructor.ex is a spiritual port of the great [Instructor Python Library](https://github.com/jxnl/instructor) by [@jxnlco](https://twitter.com/jxnlco).
+Instructor.ex is a spiritual port of the great [Instructor Python Library](https://github.com/jxnl/instructor) by [@jxnlco](https://twitter.com/jxnlco), check out his [talk](https://www.youtube.com/watch?v=yj-wSRJwrrc) on youtube.
 This library brings structured prompting to LLMs. Instead of receiving text as output, Instructor will coax the LLM to output valid JSON that maps directly to the provided Ecto schema.
 If the LLM fails to do so, or provides values that do not pass your validations, it will provide you utilities to automatically retry with the LLM to correct errors.
 By default it's designed to be used with the [OpenAI API](https://platform.openai.com/docs/api-reference/chat-completions/create), however it provides an extendable adapter behavior to work with [ggerganov/llama.cpp](https://github.com/ggerganov/llama.cpp) and [Bumblebee (Coming Soon!)](https://github.com/elixir-nx/bumblebee).
