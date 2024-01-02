@@ -1,0 +1,134 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Converting Text into Explorer DataFrames
+
+```elixir
+Mix.install(
+  [
+    # {:instructor, "~> 0.0.2"}
+    {:instructor, path: "/Users/thomas/code/instructor_ex"},
+    {:explorer, "~> 0.7.2"},
+    {:kino, "~> 0.12.0"},
+    {:kino_explorer, "~> 0.1.13"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI
+    ],
+    openai: [
+      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
+      http_options: [recv_timeout: 10 * 60 * 1000]
+    ]
+  ]
+)
+```
+
+## Motivation
+
+Sometimes we come across text that can be naturally extracted into structured data. Although we don't necessarily know how many tables, and what the schemas are represented in the data. Using Instructor we can let the LLM determine the tables and schemas for us, pulling the results into a dataframe which we can then use for further analysis.
+
+## The Schema
+
+Notice from this example we want resulting data structure to have data frames. That's not a default Ecto type so we're gonna have to do things a little different here.
+
+Luckily, Ecto allows us to define our own custom types in which we can override how the values are casted. And Instructor provides us a behavior which tells us how to represent it in a JSONSchema so the LLM can understand it.
+
+In our case, we're going to create a type for a table of data, which will be represented as a CSV string with respect to the LLM. Our custom type will then parse the string when it is casted by Ecto and parse the CSV into an `Explorer.DataFrame`.
+
+```elixir
+defmodule Ecto.CSVDataFrame do
+  use Ecto.Type
+  use Instructor.EctoType
+
+  def type, do: :string
+
+  def cast(csv_str) when is_binary(csv_str) do
+    df = Explorer.DataFrame.load_csv!(csv_str)
+    {:ok, df}
+  end
+
+  def cast(%Explorer.DataFrame{} = df), do: {:ok, df}
+  def cast(_), do: :error
+
+  def to_json_schema(),
+    do: %{
+      type: "string",
+      description: "A CSV representation of a data table"
+    }
+
+  def dump(x), do: {:ok, x}
+  def load(x), do: {:ok, x}
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Database, <<70, 79, 82, 49, 0, 0, 16, ...>>,
+ [__schema__: 1, __schema__: 1, __schema__: 1, __schema__: 1, __schema__: 2, __schema__: 2, ...]}
+```
+
+Now that we have our data type, we can use it in our embedded ecto schema, just as we would have in any other example. If everything works correctly, we should get some data frames out.
+
+```elixir
+defmodule Database do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @doc """
+  The extracted database will contain one or more tables with data as csv formatted with ',' delimiters
+  """
+  @primary_key false
+  embedded_schema do
+    embeds_many :tables, DataFrame, primary_key: false do
+      field(:name, :string)
+      field(:data, Ecto.CSVDataFrame)
+    end
+  end
+end
+```
+
+Perfect. And now let's test it out on some example text.
+
+```elixir
+extract_df = fn text ->
+  Instructor.chat_completion(
+    model: "gpt-3.5-turbo",
+    response_model: Database,
+    messages: [
+      %{
+        role: "system",
+        content: """
+        Map this data into one or more dataframes and correctly define the columns and data
+        """
+      },
+      %{
+        role: "user",
+        content: "#{text}"
+      }
+    ]
+  )
+end
+
+{:ok, db} =
+  extract_df.("""
+    My name is John and I am 25 years old. I live in
+    New York and I like to play basketball. His name is
+    Mike and he is 30 years old. He lives in San Francisco
+    and he likes to play baseball. Sarah is 20 years old
+    and she lives in Los Angeles. She likes to play tennis.
+    Her name is Mary and she is 35 years old.
+    She lives in Chicago.
+    
+    On one team 'Tigers' the captain is John and there are 12 players.
+    On the other team 'Lions' the captain is Mike and there are 10 players.
+  """)
+
+Kino.Layout.tabs(
+  for table <- db.tables do
+    {table.name, table.data}
+  end
+)
+```
+
+<!-- livebook:{"offset":3879,"stamp":{"token":"XCP.1MKP4pS1K9lEPjbOePlX-1tUNBuAPblHgGfDBRuH1wcoUzxTj4O2ANdmZFBm_EkYDU1595mnO4rMQUpV6M9XAmAH2tZVM7qRsyPB5DaJ-H59Vb-U8FcZpjM","version":2}} -->

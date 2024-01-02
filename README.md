@@ -111,16 +111,14 @@ end
   - [ ] GBNF should enforce required properties on objects, currently they're optional.
   - [ ] GBNF limit the number of digits in number tokens -- small models can sometimes run off to infinit digits
 - [ ] Add `llm_validator`
-- [ ] Support binaries and binary_id in JSONSchema and GBNF
 - [x] Verify :naive_datetime support
   - [ ] field descriptor specifying the ISO format
-- [x] Support OpenAI Tools AP
 - [ ] Logging for Distillation / Finetuning
 - [ ] Add a Bumblebee adapter
 - [ ] Support Streaming
 - [ ] Optional/Maybe types
 - [ ] Verify Ecto Schemaless, add tests
-- [x] Add Validation Context
+- [ ] When changeset fails to cast, it should show the underlying data (better error messages)
 - [ ] Add Livebook Tutorials, include in Hexdocs
     - [x] Text Classification
     - [ ] Self Critique
@@ -133,7 +131,7 @@ end
     - [ ] Query Decomposition
     - [ ] Recursive Schemas
     - [ ] Table Extraction
-    - [ ] Action Item and Dependency Mapping
+    - [x] Action Item and Dependency Mapping
     - [ ] Multi-File Code Generation
     - [ ] PII Data Sanitization
 - [x] Update hexdocs homepage to include example for tutorial

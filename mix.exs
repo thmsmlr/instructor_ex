@@ -26,7 +26,9 @@ defmodule Instructor.MixProject do
         extras: [
           "README.md",
           "notebooks/tutorial.livemd",
-          "notebooks/text-classification.livemd"
+          "notebooks/text-classification.livemd",
+          "notebooks/extract-action-items-from-meeting-transcripts.livemd",
+          "notebooks/text-to-dataframes.livemd"
         ],
         extra_section: "GUIDES",
       ],

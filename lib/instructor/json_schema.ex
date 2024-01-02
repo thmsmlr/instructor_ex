@@ -165,7 +165,7 @@ defmodule Instructor.JSONSchema do
   defp for_type(:string), do: %{type: "string"}
   # defp for_type(:binary), do: %{type: "unsupported"}
   defp for_type({:array, type}), do: %{type: "array", items: for_type(type)}
-  defp for_type(:map), do: %{type: "object", additionalProperties: %{type: "string"}}
+  defp for_type(:map), do: %{type: "object", additionalProperties: %{}}
 
   defp for_type({:map, type}),
     do: %{type: "object", additionalProperties: for_type(type)}
@@ -202,5 +202,16 @@ defmodule Instructor.JSONSchema do
       type: "string",
       enum: Keyword.keys(mappings)
     }
+  end
+
+  defp for_type(mod) do
+    if function_exported?(mod, :to_json_schema, 0) do
+      mod.to_json_schema()
+    else
+      raise(
+        message:
+          "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/1` via `use Instructor.EctoType`"
+      )
+    end
   end
 end
