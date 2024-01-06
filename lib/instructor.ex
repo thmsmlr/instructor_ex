@@ -183,7 +183,7 @@ defmodule Instructor do
   defp params_for_tool(:tools, params) do
     response_model = Keyword.fetch!(params, :response_model)
     json_schema = JSONSchema.from_ecto_schema(response_model)
-    title = JSONSchema.title_for(response_model)
+    title = JSONSchema.title_for(response_model) |> sanitize()
 
     params =
       params
@@ -217,6 +217,9 @@ defmodule Instructor do
 
     params
   end
+
+  defp sanitize(title),
+    do: title |> String.replace("_", "-") |> String.replace("?", "") |> String.replace(".", "-")
 
   defp call_validate(response_model, changeset, context) do
     cond do
