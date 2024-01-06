@@ -55,6 +55,11 @@ defmodule Instructor do
     do_chat_completion(params)
   end
 
+  def cast_all({data, types}, params) do
+    {data, types}
+    |> Ecto.Changeset.cast(params, Map.keys(types))
+  end
+
   def cast_all(schema, params) do
     response_model = schema.__struct__
     fields = response_model.__schema__(:fields) |> MapSet.new()
@@ -94,9 +99,16 @@ defmodule Instructor do
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_tool(mode, params)
 
+    model =
+      if is_map(response_model) do
+        {%{}, response_model}
+      else
+        response_model.__struct__()
+      end
+
     with {:llm, {:ok, response}} <- {:llm, adapter().chat_completion(params)},
          {:valid_json, {:ok, params}} <- {:valid_json, parse_response_for_mode(mode, response)},
-         changeset <- cast_all(response_model.__struct__(), params),
+         changeset <- cast_all(model, params),
          {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
            {:validation, call_validate(response_model, changeset, validation_context), response} do
       {:ok, changeset |> Ecto.Changeset.apply_changes()}
@@ -223,6 +235,9 @@ defmodule Instructor do
 
   defp call_validate(response_model, changeset, context) do
     cond do
+      is_map(response_model) ->
+        changeset
+
       function_exported?(response_model, :validate_changeset, 1) ->
         response_model.validate_changeset(changeset)
 

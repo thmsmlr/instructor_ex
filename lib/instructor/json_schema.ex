@@ -5,6 +5,24 @@ defmodule Instructor.JSONSchema do
     Note: This will output a correct JSON Schema for the given Ecto schema, but
     it will not necessarily be optimal, nor support all Ecto types.
   """
+  def from_ecto_schema(ecto_types) when is_map(ecto_types) do
+    title = title_for(ecto_types)
+
+    properties =
+      for {field, type} <- ecto_types, into: %{} do
+        {field, for_type(type)}
+      end
+
+    %{
+      title: title,
+      type: "object",
+      required: Map.keys(ecto_types),
+      properties: properties,
+      description: ""
+    }
+    |> Jason.encode!()
+  end
+
   def from_ecto_schema(ecto_schema) do
     defs =
       for schema <- bfs_from_ecto_schema([ecto_schema], %MapSet{}), into: %{} do
@@ -127,6 +145,8 @@ defmodule Instructor.JSONSchema do
 
     [schema | bfs_from_ecto_schema(rest, seen_schemas)]
   end
+
+  def title_for(ecto_types) when is_map(ecto_types), do: "schema"
 
   def title_for(ecto_schema) do
     to_string(ecto_schema) |> String.trim_leading("Elixir.")
