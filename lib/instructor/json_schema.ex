@@ -210,7 +210,7 @@ defmodule Instructor.JSONSchema do
     else
       raise(
         message:
-          "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/1` via `use Instructor.EctoType`"
+          "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/0` via `use Instructor.EctoType`"
       )
     end
   end

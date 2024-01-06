@@ -116,7 +116,7 @@ defmodule JSONSchemaTest do
         "float" => %{"format" => "float", "title" => "float", "type" => "number"},
         "integer" => %{"title" => "integer", "type" => "integer"},
         "map" => %{
-          "additionalProperties" => %{"type" => "string"},
+          "additionalProperties" => %{},
           "title" => "map",
           "type" => "object"
         },

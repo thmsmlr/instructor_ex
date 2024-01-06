@@ -111,10 +111,9 @@ end
   - [ ] GBNF should enforce required properties on objects, currently they're optional.
   - [ ] GBNF limit the number of digits in number tokens -- small models can sometimes run off to infinit digits
 - [ ] Add `llm_validator`
-- [x] Verify :naive_datetime support
-  - [ ] field descriptor specifying the ISO format
 - [ ] Logging for Distillation / Finetuning
 - [ ] Add a Bumblebee adapter
+- [ ] Add llamacpp_ex adapter
 - [ ] Support Streaming
 - [ ] Optional/Maybe types
 - [ ] Verify Ecto Schemaless, add tests
@@ -130,7 +129,7 @@ end
     - [ ] Search Queries
     - [ ] Query Decomposition
     - [ ] Recursive Schemas
-    - [ ] Table Extraction
+    - [x] Table Extraction
     - [x] Action Item and Dependency Mapping
     - [ ] Multi-File Code Generation
     - [ ] PII Data Sanitization

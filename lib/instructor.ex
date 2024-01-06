@@ -87,7 +87,6 @@ defmodule Instructor do
     changeset
   end
 
-
   defp do_chat_completion(params) do
     response_model = Keyword.fetch!(params, :response_model)
     validation_context = Keyword.get(params, :validation_context, %{})
@@ -170,7 +169,8 @@ defmodule Instructor do
          ]
        }) do
     [
-      Map.put(message, "content", function |> Jason.encode!()),
+      Map.put(message, "content", function |> Jason.encode!())
+      |> Map.new(fn {k, v} -> {String.to_atom(k), v} end),
       %{
         role: "tool",
         tool_call_id: tool_call_id,

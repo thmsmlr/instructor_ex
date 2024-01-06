@@ -5,7 +5,8 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, ">= 0.0.2"}
+    # {:instructor, ">= 0.0.2"}
+    {:instructor, path: "/Users/thomas/code/instructor_ex"}
   ],
   config: [
     instructor: [
@@ -193,7 +194,8 @@ Instructor.chat_completion(
 
 ```
 
-21:57:57.454 [debug] Retrying LLM call for Elixir.NumberSeries...
+23:59:13.641 [debug] Retrying LLM call for Elixir.NumberSeries...
+
 ```
 
 <!-- livebook:{"output":true} -->
@@ -202,4 +204,4 @@ Instructor.chat_completion(
 {:ok, %NumberSeries{series: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]}}
 ```
 
-<!-- livebook:{"offset":6666,"stamp":{"token":"XCP.xJU0hP-ecx8h-1vD8IRMpctYsOF04sfCcNyrtvzPxbSxQR7mZJfqRIDQXsEwJgSpnmi2abFDwxttXR_WyKI2wYdKnYDLo10lUJnrq8EBbOqpRSaeF2c8vdc","version":2}} -->
+<!-- livebook:{"offset":6729,"stamp":{"token":"XCP.Roo6JXuq5pvsYYM4xHSSXzUQNOfPTuMS0cQOeSVWO-9Am1Nv76KPHbWYwzCJDEP0xm_Bl7ignzLNlkI1l5sOtwmp5PcUrye8NltUPM1MOwiAhT_ZRLKKk9w","version":2}} -->

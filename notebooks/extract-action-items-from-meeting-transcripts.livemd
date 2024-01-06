@@ -129,34 +129,61 @@ end
  %MeetingNotes{
    tickets: [
      %MeetingNotes.Ticket{
-       id: "1",
-       name: "Authentication System Improvements",
+       id: "T1",
+       name: "Improving authentication system",
        description: "Work on improving the authentication system",
        priority: :high,
        assignees: ["Bob"],
        subtasks: [
-         %MeetingNotes.Ticket.SubTasks{id: "1.1", name: "Front-end Revamp"},
-         %MeetingNotes.Ticket.SubTasks{id: "1.2", name: "Back-end Optimization"}
+         %MeetingNotes.Ticket.SubTasks{id: "T1.1", name: "Front-end revamp"},
+         %MeetingNotes.Ticket.SubTasks{id: "T1.2", name: "Back-end optimization"}
        ],
        dependencies: []
      },
      %MeetingNotes.Ticket{
-       id: "2",
-       name: "Integration with New Billing System",
+       id: "T2",
+       name: "Integrating authentication system with billing system",
        description: "Integrate the improved authentication system with the new billing system",
        priority: :medium,
        assignees: ["Bob"],
        subtasks: [],
-       dependencies: ["1"]
+       dependencies: ["T1.2"]
      },
      %MeetingNotes.Ticket{
-       id: "3",
-       name: "Update User Documentation",
-       description: "Update the user documentation to reflect the changes",
+       id: "T3",
+       name: "Update user documentation",
+       description: "Update user documentation to reflect the changes",
        priority: :low,
        assignees: ["Carol"],
        subtasks: [],
-       dependencies: ["1.1"]
+       dependencies: ["T1.1"]
+     },
+     %MeetingNotes.Ticket{
+       id: "T4",
+       name: "Handle front-end part of authentication system",
+       description: "Help with the front-end part of the authentication system",
+       priority: :medium,
+       assignees: ["Carol"],
+       subtasks: [],
+       dependencies: []
+     },
+     %MeetingNotes.Ticket{
+       id: "T5",
+       name: "Handle back-end optimization of authentication system",
+       description: "Handle the back-end optimization of the authentication system",
+       priority: :high,
+       assignees: ["Bob"],
+       subtasks: [],
+       dependencies: []
+     },
+     %MeetingNotes.Ticket{
+       id: "T6",
+       name: "Handle billing system",
+       description: "Handle the new billing system",
+       priority: :medium,
+       assignees: ["Bob"],
+       subtasks: [],
+       dependencies: ["T5"]
      }
    ]
  }}
@@ -228,40 +255,65 @@ generate_tickets_diagram.(tickets)
 
 ```mermaid
   erDiagram
-      "Authentication System Improvements" {
+      "Improving authentication system" {
     priority high
     assignees Bob
   }
 
-  "Authentication System Improvements" ||--o| "Front-end Revamp" : "Has Subtask"
+  "Improving authentication system" ||--o| "Front-end revamp" : "Has Subtask"
 
-"Authentication System Improvements" ||--o| "Back-end Optimization" : "Has Subtask"
+"Improving authentication system" ||--o| "Back-end optimization" : "Has Subtask"
 
   
 
-  "Integration with New Billing System" {
+  "Integrating authentication system with billing system" {
     priority medium
     assignees Bob
   }
 
   
-  "Integration with New Billing System" ||--o| "Authentication System Improvements" : "Depends on"
+  "Integrating authentication system with billing system" ||--o| "Back-end optimization" : "Depends on"
 
 
-  "Update User Documentation" {
+  "Update user documentation" {
     priority low
     assignees Carol
   }
 
   
-  "Update User Documentation" ||--o| "Front-end Revamp" : "Depends on"
+  "Update user documentation" ||--o| "Front-end revamp" : "Depends on"
 
 
-      "Front-end Revamp"
+  "Handle front-end part of authentication system" {
+    priority medium
+    assignees Carol
+  }
 
-  "Back-end Optimization"
+  
+  
+
+  "Handle back-end optimization of authentication system" {
+    priority high
+    assignees Bob
+  }
+
+  
+  
+
+  "Handle billing system" {
+    priority medium
+    assignees Bob
+  }
+
+  
+  "Handle billing system" ||--o| "Handle back-end optimization of authentication system" : "Depends on"
+
+
+      "Front-end revamp"
+
+  "Back-end optimization"
 
 
 ```
 
-<!-- livebook:{"offset":8073,"stamp":{"token":"XCP.vkrpNsM3ujE-1FXrpLCr5bzzctBzwp-Y0IFkMjDs3rVsBRJHvwGphPkufT34Fl8fOk0IOr3iLCZ1jylSlDn484FDRA_JObP7KeWbLe4pzrBsl9Rs8GVyJZo","version":2}} -->
+<!-- livebook:{"offset":9344,"stamp":{"token":"XCP.yoxkI3zUVgtejiyU2srLCvVLT75QXTgesEQjLStJbAnsnGXKP_GDcj9sBvH0HWHPyCeWv5ED8A9E9U3pTmkv52a7CDbpnRt67H0VohcnXKo9I9ftFkEfoC8","version":2}} -->

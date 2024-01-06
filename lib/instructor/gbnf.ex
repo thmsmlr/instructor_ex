@@ -21,8 +21,8 @@ defmodule Instructor.GBNF do
   string-char ::= [^"\\\\] | "\\\\" (["\\\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]) # escapes
 
   # ISO8601 date format
-  date ::= [0-9]{4} "-" [0-9]{2} "-" [0-9]{2}
-  datetime ::= date "T" [0-9]{2} ":" [0-9]{2} ":" [0-9]{2} ("." [0-9]+)? ("Z" | ("+" | "-") [0-9]{2} ":" [0-9]{2})
+  date ::= [0-9][0-9][0-9][0-9] "-" [0-9][0-9] "-" [0-9][0-9]
+  datetime ::= date "T" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] ("." [0-9]+)? ("Z" | ("+" | "-") [0-9][0-9] ":" [0-9][0-9])
 
   number ::= integer ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
   integer ::= "-"? ([0-9] | [1-9] [0-9]*)
@@ -80,7 +80,7 @@ defmodule Instructor.GBNF do
     """
   end
 
-  defp sanitize(x), do: x |> String.replace("_", "-")
+  defp sanitize(x), do: x |> String.replace("_", "-") |> String.replace("?", "")
 
   defp for_type(%{"type" => "integer"}), do: "integer"
   defp for_type(%{"format" => "float", "type" => "number"}), do: "number"
@@ -109,6 +109,16 @@ defmodule Instructor.GBNF do
         "{" ws (
             string ":" ws #{subtype}
             ("," ws string ":" ws #{subtype})*
+        )? "}"
+    """
+  end
+
+  defp for_type(%{"type" => "object", "additionalProperties" => %{}}) do
+    """
+    object ::=
+        "{" ws (
+            string ":" ws value
+            ("," ws string ":" ws value)*
         )? "}"
     """
   end

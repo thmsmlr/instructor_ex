@@ -56,8 +56,8 @@ defmodule GBNFTest do
       root-integer ::= "\\"integer\\"" ":" ws01 integer
       root-map ::= "\\"map\\"" ":" ws01 object ::=
       "{" ws (
-          string ":" ws string
-          ("," ws string ":" ws string)*
+          string ":" ws value
+          ("," ws string ":" ws value)*
       )? "}"
 
       root-map-two ::= "\\"map_two\\"" ":" ws01 object ::=
@@ -94,8 +94,8 @@ defmodule GBNFTest do
       string-char ::= [^"\\\\] | "\\\\" (["\\\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]) # escapes
 
       # ISO8601 date format
-      date ::= [0-9]{4} "-" [0-9]{2} "-" [0-9]{2}
-      datetime ::= date "T" [0-9]{2} ":" [0-9]{2} ":" [0-9]{2} ("." [0-9]+)? ("Z" | ("+" | "-") [0-9]{2} ":" [0-9]{2})
+      date ::= [0-9][0-9][0-9][0-9] "-" [0-9][0-9] "-" [0-9][0-9]
+      datetime ::= date "T" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] ("." [0-9]+)? ("Z" | ("+" | "-") [0-9][0-9] ":" [0-9][0-9])
 
       number ::= integer ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
       integer ::= "-"? ([0-9] | [1-9] [0-9]*)

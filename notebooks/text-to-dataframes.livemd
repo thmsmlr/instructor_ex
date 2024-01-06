@@ -64,8 +64,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Database, <<70, 79, 82, 49, 0, 0, 16, ...>>,
- [__schema__: 1, __schema__: 1, __schema__: 1, __schema__: 1, __schema__: 2, __schema__: 2, ...]}
+{:module, Ecto.CSVDataFrame, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:load, 1}}
 ```
 
 Now that we have our data type, we can use it in our embedded ecto schema, just as we would have in any other example. If everything works correctly, we should get some data frames out.
@@ -86,6 +85,13 @@ defmodule Database do
     end
   end
 end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Database, <<70, 79, 82, 49, 0, 0, 16, ...>>,
+ [__schema__: 1, __schema__: 1, __schema__: 1, __schema__: 1, __schema__: 2, __schema__: 2, ...]}
 ```
 
 Perfect. And now let's test it out on some example text.
@@ -131,4 +137,4 @@ Kino.Layout.tabs(
 )
 ```
 
-<!-- livebook:{"offset":3879,"stamp":{"token":"XCP.1MKP4pS1K9lEPjbOePlX-1tUNBuAPblHgGfDBRuH1wcoUzxTj4O2ANdmZFBm_EkYDU1595mnO4rMQUpV6M9XAmAH2tZVM7qRsyPB5DaJ-H59Vb-U8FcZpjM","version":2}} -->
+<!-- livebook:{"offset":3999,"stamp":{"token":"XCP.eOIgnqRdBf7UJbu8VBayXk_IAWAeXsVWDLci5cYgC05okdcozpMo6Ws9qnDJgn7gy_mHCuWF4_47W5ZS8-aNkKlULC1M2IO_ZU-D9Dr6c8He4Np36gRxwNc","version":2}} -->
