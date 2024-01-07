@@ -3,47 +3,14 @@ defmodule InstructorTest do
 
   import Mox
 
+  require Instructor.TestHelpers
+  alias Instructor.TestHelpers
+
   setup :verify_on_exit!
 
   test "schemaless ecto" do
-    InstructorTest.MockOpenAI
-    |> expect(:chat_completion, fn params ->
-      {:ok,
-       %{
-         id: "chatcmpl-8e9AVo9NHfvBG5cdtAEiJMm7q4Htz",
-         usage: %{
-           "completion_tokens" => 23,
-           "prompt_tokens" => 136,
-           "total_tokens" => 159
-         },
-         choices: [
-           %{
-             "finish_reason" => "stop",
-             "index" => 0,
-             "logprobs" => nil,
-             "message" => %{
-               "content" => nil,
-               "role" => "assistant",
-               "tool_calls" => [
-                 %{
-                   "function" => %{
-                     "arguments" =>
-                       "{\n  \"name\": \"George Washington\",\n  \"birth_date\": \"1732-02-22\"\n}",
-                     "name" => "schema"
-                   },
-                   "id" => "call_DT9fBvVCHWGSf9IeFZnlarIY",
-                   "type" => "function"
-                 }
-               ]
-             }
-           }
-         ],
-         model: "gpt-3.5-turbo-0613",
-         object: "chat.completion",
-         created: 1_704_579_055,
-         system_fingerprint: nil
-       }}
-    end)
+    expected = %{name: "George Washington", birth_date: ~D[1732-02-22]}
+    TestHelpers.mock_openai_response(expected)
 
     result =
       Instructor.chat_completion(
@@ -54,6 +21,117 @@ defmodule InstructorTest do
         ]
       )
 
-    assert {:ok, %{name: "George Washington", birth_date: ~D[1732-02-22]}} = result
+    assert {:ok, ^expected} = result
+  end
+
+  defmodule SpamPrediction do
+    use Ecto.Schema
+
+    @primary_key false
+    embedded_schema do
+      field(:class, Ecto.Enum, values: [:spam, :not_spam])
+      field(:score, :float)
+    end
+  end
+
+  test "basic ecto model" do
+    TestHelpers.mock_openai_response(%{class: :spam, score: 0.9})
+
+    result =
+      Instructor.chat_completion(
+        model: "gpt-3.5-turbo",
+        response_model: SpamPrediction,
+        messages: [
+          %{
+            role: "user",
+            content:
+              "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
+          }
+        ]
+      )
+
+    assert {:ok, %SpamPrediction{class: :spam, score: 0.9}} = result
+  end
+
+  defmodule AllEctoTypes do
+    use Ecto.Schema
+
+    # Be explicit about all fields in this test
+    @primary_key false
+    embedded_schema do
+      field(:binary_id, :binary_id)
+      field(:integer, :integer)
+      field(:float, :float)
+      field(:boolean, :boolean)
+      field(:string, :string)
+      # field(:binary, :binary)
+      field(:array, {:array, :string})
+      field(:map, :map)
+      field(:map_two, {:map, :string})
+      field(:decimal, :decimal)
+      field(:date, :date)
+      field(:time, :time)
+      field(:time_usec, :time_usec)
+      field(:naive_datetime, :naive_datetime)
+      field(:naive_datetime_usec, :naive_datetime_usec)
+      field(:utc_datetime, :utc_datetime)
+      field(:utc_datetime_usec, :utc_datetime_usec)
+    end
+  end
+
+  test "all ecto types" do
+    TestHelpers.mock_openai_response(%{
+      binary_id: "binary_id",
+      integer: 1,
+      float: 1.0,
+      boolean: true,
+      string: "string",
+      array: ["array"],
+      map: %{"map" => "map"},
+      map_two: %{"map_two" => "map_two"},
+      decimal: 1.0,
+      date: "2021-08-01",
+      time: "12:00:00",
+      time_usec: "12:00:00.000000",
+      naive_datetime: "2021-08-01T12:00:00",
+      naive_datetime_usec: "2021-08-01T12:00:00.000000",
+      utc_datetime: "2021-08-01T12:00:00Z",
+      utc_datetime_usec: "2021-08-01T12:00:00.000000Z"
+    })
+
+    result =
+      Instructor.chat_completion(
+        model: "gpt-3.5-turbo",
+        response_model: AllEctoTypes,
+        messages: [
+          %{
+            role: "user",
+            content:
+              "What are the types of the following fields: binary_id, integer, float, boolean, string, array, map, map_two, decimal, date, time, time_usec, naive_datetime, naive_datetime_usec, utc_datetime, utc_datetime_usec?"
+          }
+        ]
+      )
+
+    decimal = Decimal.new("1.0")
+
+    assert {:ok,
+            %AllEctoTypes{
+              binary_id: "binary_id",
+              integer: 1,
+              float: 1.0,
+              boolean: true,
+              string: "string",
+              array: ["array"],
+              map: %{"map" => "map"},
+              map_two: %{"map_two" => "map_two"},
+              decimal: ^decimal,
+              date: ~D[2021-08-01],
+              time: ~T[12:00:00],
+              time_usec: ~T[12:00:00.000000],
+              naive_datetime: ~N[2021-08-01 12:00:00],
+              naive_datetime_usec: ~N[2021-08-01 12:00:00.000000],
+              utc_datetime: ~U[2021-08-01 12:00:00Z],
+              utc_datetime_usec: ~U[2021-08-01 12:00:00.000000Z]
+            }} = result
   end
 end

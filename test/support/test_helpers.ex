@@ -1,9 +1,4 @@
-ExUnit.start()
-
-Mox.defmock(InstructorTest.MockOpenAI, for: Instructor.Adapter)
-Application.put_env(:instructor, :adapter, InstructorTest.MockOpenAI)
-
-defmodule TestHelper do
+defmodule Instructor.TestHelpers do
   defmacro mock_openai_response(result) do
     quote do
       InstructorTest.MockOpenAI

@@ -116,7 +116,7 @@ end
 - [ ] Add llamacpp_ex adapter
 - [ ] Support Streaming
 - [ ] Optional/Maybe types
-- [ ] Verify Ecto Schemaless, add tests
+- [x] Verify Ecto Schemaless, add tests
 - [ ] When changeset fails to cast, it should show the underlying data (better error messages)
 - [ ] Add Livebook Tutorials, include in Hexdocs
     - [x] Text Classification
