@@ -134,4 +134,38 @@ defmodule InstructorTest do
               utc_datetime_usec: ~U[2021-08-01 12:00:00.000000Z]
             }} = result
   end
+
+  test "retry upto n times" do
+    TestHelpers.mock_openai_response(%{wrong_field: "foobar"})
+    TestHelpers.mock_openai_response(%{wrong_field: "foobar"})
+
+    result =
+      Instructor.chat_completion(
+        model: "gpt-3.5-turbo",
+        max_retries: 1,
+        response_model: %{field: :string},
+        messages: [
+          %{role: "user", content: "What is the field?"}
+        ]
+      )
+
+    assert {:error, %Ecto.Changeset{valid?: false}} = result
+
+    TestHelpers.mock_openai_response(%{wrong_field: "foobar"})
+    TestHelpers.mock_openai_response(%{field: 123})
+    TestHelpers.mock_openai_response(%{field: "foobar"})
+
+    result =
+      Instructor.chat_completion(
+        model: "gpt-3.5-turbo",
+        max_retries: 3,
+        response_model: %{field: :string},
+        messages: [
+          %{role: "user", content: "What is the field?"}
+        ]
+      )
+
+    assert {:ok, %{field: "foobar"}} = result
+  end
+
 end

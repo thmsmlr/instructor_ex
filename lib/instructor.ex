@@ -56,8 +56,11 @@ defmodule Instructor do
   end
 
   def cast_all({data, types}, params) do
+    fields = Map.keys(types)
+
     {data, types}
-    |> Ecto.Changeset.cast(params, Map.keys(types))
+    |> Ecto.Changeset.cast(params, fields)
+    |> Ecto.Changeset.validate_required(fields)
   end
 
   def cast_all(schema, params) do
@@ -122,7 +125,7 @@ defmodule Instructor do
       {:validation, changeset, response} ->
         if max_retries > 0 do
           errors = Instructor.ErrorFormatter.format_errors(changeset)
-          Logger.debug("Retrying LLM call for #{response_model}...", errors: errors)
+          Logger.debug("Retrying LLM call for #{inspect(response_model)}...", errors: errors)
 
           params =
             params
