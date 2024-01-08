@@ -4,7 +4,7 @@ _Structured, Ecto outputs with OpenAI (and OSS LLMs)_
 
 ---
 
-[![KinoShell version](https://img.shields.io/hexpm/v/instructor.svg)](https://hex.pm/packages/instructor)
+[![Instructor version](https://img.shields.io/hexpm/v/instructor.svg)](https://hex.pm/packages/instructor)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/instructor/)
 [![GitHub stars](https://img.shields.io/github/stars/thmsmlr/instructor_ex.svg)](https://github.com/thmsmlr/instructor_ex/stargazers)
 [![Twitter Follow](https://img.shields.io/twitter/follow/thmsmlr?style=social)](https://twitter.com/thmsmlr)
@@ -114,7 +114,9 @@ end
 - [ ] Logging for Distillation / Finetuning
 - [ ] Add a Bumblebee adapter
 - [ ] Add llamacpp_ex adapter
-- [ ] Support Streaming
+- [x] Support Streaming
+  - [ ] Verify schemaless support `{:array, %{name: :string}}`
+  - [ ] Support typespec style support for array streaming `[MySchema]`
 - [ ] Optional/Maybe types
 - [ ] When changeset fails to cast, it should show the underlying data (better error messages)
 - [ ] Add Livebook Tutorials, include in Hexdocs
