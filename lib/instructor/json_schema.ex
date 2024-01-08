@@ -1,28 +1,12 @@
 defmodule Instructor.JSONSchema do
+  defguardp is_ecto_schema(mod) when is_atom(mod)
+
   @doc """
     Generates a JSON Schema from an Ecto schema.
 
     Note: This will output a correct JSON Schema for the given Ecto schema, but
     it will not necessarily be optimal, nor support all Ecto types.
   """
-  def from_ecto_schema(ecto_types) when is_map(ecto_types) do
-    title = title_for(ecto_types)
-
-    properties =
-      for {field, type} <- ecto_types, into: %{} do
-        {field, for_type(type)}
-      end
-
-    %{
-      title: title,
-      type: "object",
-      required: Map.keys(ecto_types),
-      properties: properties,
-      description: ""
-    }
-    |> Jason.encode!()
-  end
-
   def from_ecto_schema(ecto_schema) do
     defs =
       for schema <- bfs_from_ecto_schema([ecto_schema], %MapSet{}), into: %{} do
@@ -77,7 +61,8 @@ defmodule Instructor.JSONSchema do
 
   defp bfs_from_ecto_schema([], _seen_schemas), do: []
 
-  defp bfs_from_ecto_schema([ecto_schema | rest], seen_schemas) do
+  defp bfs_from_ecto_schema([ecto_schema | rest], seen_schemas)
+       when is_ecto_schema(ecto_schema) do
     seen_schemas = MapSet.put(seen_schemas, ecto_schema)
 
     properties =
@@ -146,11 +131,43 @@ defmodule Instructor.JSONSchema do
     [schema | bfs_from_ecto_schema(rest, seen_schemas)]
   end
 
-  def title_for(ecto_types) when is_map(ecto_types), do: "schema"
+  defp bfs_from_ecto_schema([ecto_types | rest], seen_schemas) do
+    properties =
+      for {field, type} <- ecto_types, into: %{} do
+        {field, for_type(type)}
+      end
 
-  def title_for(ecto_schema) do
+    required = Map.keys(properties)
+    title = title_for(ecto_types)
+
+    embedded_schemas =
+      for {_field, {:parameterized, Ecto.Embedded, %Ecto.Embedded{related: type}}} <- ecto_types do
+        type
+      end
+
+    rest =
+      rest
+      |> Enum.concat(embedded_schemas)
+      |> Enum.uniq()
+      |> Enum.filter(&(!MapSet.member?(seen_schemas, &1)))
+
+    schema =
+      %{
+        title: title,
+        type: "object",
+        required: required,
+        properties: properties,
+        description: ""
+      }
+
+    [schema | bfs_from_ecto_schema(rest, seen_schemas)]
+  end
+
+  def title_for(ecto_schema) when is_ecto_schema(ecto_schema) do
     to_string(ecto_schema) |> String.trim_leading("Elixir.")
   end
+
+  def title_for(_ecto_types), do: "schema"
 
   # Find all values in a map or list that match a predicate
   defp find_all_values(map, pred) when is_map(map) do
@@ -228,10 +245,7 @@ defmodule Instructor.JSONSchema do
     if function_exported?(mod, :to_json_schema, 0) do
       mod.to_json_schema()
     else
-      raise(
-        message:
-          "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/0` via `use Instructor.EctoType`"
-      )
+      raise "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/0` via `use Instructor.EctoType`"
     end
   end
 end

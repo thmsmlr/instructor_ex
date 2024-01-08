@@ -14,6 +14,8 @@ defmodule Instructor do
   #{readme_docs}
   """
 
+  defguardp is_ecto_schema(mod) when is_atom(mod)
+
   @doc """
   Create a new chat completion for the provided messages and parameters.
 
@@ -52,7 +54,13 @@ defmodule Instructor do
       |> Keyword.put_new(:max_retries, 0)
       |> Keyword.put_new(:mode, :tools)
 
-    do_chat_completion(params)
+    is_stream = Keyword.get(params, :stream, false)
+
+    if is_stream do
+      do_streaming_chat_completion(params)
+    else
+      do_chat_completion(params)
+    end
   end
 
   def cast_all({data, types}, params) do
@@ -95,18 +103,67 @@ defmodule Instructor do
     changeset
   end
 
+  defp do_streaming_chat_completion(params) do
+    response_model =
+      case Keyword.fetch!(params, :response_model) do
+        {:array, x} -> x
+      end
+
+    wrapped_model = %{
+      values:
+        {:parameterized, Ecto.Embedded,
+         %Ecto.Embedded{cardinality: :many, related: response_model}}
+    }
+
+    validation_context = Keyword.get(params, :validation_context, %{})
+    mode = Keyword.get(params, :mode, :tools)
+
+    params = params_for_tool(mode, wrapped_model, params)
+
+    adapter().chat_completion(params)
+    |> Stream.map(fn
+      %{
+        "choices" => [%{"delta" => %{"tool_calls" => [%{"function" => %{"arguments" => chunk}}]}}]
+      } ->
+        chunk
+
+      %{"choices" => [%{"finish_reason" => "stop"}]} ->
+        ""
+    end)
+    |> Jaxon.Stream.from_enumerable()
+    |> Jaxon.Stream.query([:root, "values", :all])
+    |> Stream.map(fn params ->
+      model =
+        if is_ecto_schema(response_model) do
+          response_model.__struct__()
+        else
+          {%{}, response_model}
+        end
+
+      with changeset <- cast_all(model, params),
+           {:validation, %Ecto.Changeset{valid?: true} = changeset} <-
+             {:validation, call_validate(response_model, changeset, validation_context)} do
+        {:ok, changeset |> Ecto.Changeset.apply_changes()}
+      else
+        {:validation, changeset} -> {:error, changeset}
+        {:error, reason} -> {:error, reason}
+        e -> {:error, e}
+      end
+    end)
+  end
+
   defp do_chat_completion(params) do
     response_model = Keyword.fetch!(params, :response_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     max_retries = Keyword.get(params, :max_retries)
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, params)
+    params = params_for_tool(mode, response_model, params)
 
     model =
-      if is_map(response_model) do
-        {%{}, response_model}
-      else
+      if is_ecto_schema(response_model) do
         response_model.__struct__()
+      else
+        {%{}, response_model}
       end
 
     with {:llm, {:ok, response}} <- {:llm, adapter().chat_completion(params)},
@@ -195,8 +252,7 @@ defmodule Instructor do
     ]
   end
 
-  defp params_for_tool(:tools, params) do
-    response_model = Keyword.fetch!(params, :response_model)
+  defp params_for_tool(:tools, response_model, params) do
     json_schema = JSONSchema.from_ecto_schema(response_model)
     title = JSONSchema.title_for(response_model) |> sanitize()
 
@@ -238,7 +294,7 @@ defmodule Instructor do
 
   defp call_validate(response_model, changeset, context) do
     cond do
-      is_map(response_model) ->
+      not is_ecto_schema(response_model) ->
         changeset
 
       function_exported?(response_model, :validate_changeset, 1) ->

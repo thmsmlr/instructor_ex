@@ -69,6 +69,7 @@ defmodule Instructor.MixProject do
       {:openai, "~> 0.6.0"},
       {:jason, "~> 1.4.0"},
       {:req, "~> 0.4.0"},
+      {:jaxon, "~> 2.0"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:mox, "~> 1.1.0", only: :test}
     ]
