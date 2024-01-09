@@ -19,7 +19,7 @@ By default it's designed to be used with the [OpenAI API](https://platform.opena
 At its simplest, usage is pretty straightforward,
 
 ```elixir
-defmodule SpamPredicition do
+defmodule SpamPrediction do
   use Ecto.Schema
   use Instructor.Validator
 
@@ -68,7 +68,7 @@ end
 
 is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 
-# => {:ok, %SpamPredicition{class: :spam, reason: "Nigerian prince email scam", score: 0.98}}
+# => {:ok, %SpamPrediction{class: :spam, reason: "Nigerian prince email scam", score: 0.98}}
 ```
 
 Simply create an ecto schema, optionally provide a `@doc` to the schema definition which we pass down to the LLM, then make a call to `Instructor.chat_completion/1` with context about the task you'd like the LLM to complete.
@@ -85,7 +85,7 @@ config :openai, api_key: "sk-........"
 config :openai, http_options: [recv_timeout: 10 * 60 * 1000]
 ```
 
-To use a local LLM, you can install and run [llama.cpp serer](https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md) and tell instructor to use it,
+To use a local LLM, you can install and run [llama.cpp server](https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md) and tell instructor to use it,
 
 ```elixir
 config :instructor, adapter: Instructor.Adapters.Llamacpp
