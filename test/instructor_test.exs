@@ -174,14 +174,15 @@ defmodule InstructorTest do
     @primary_key false
     embedded_schema do
       field(:name, :string)
+      field(:birthdate, :date)
     end
   end
 
   test "streams arrays one at a time" do
     presidents = [
-      %{name: "George Washington"},
-      %{name: "John Adams"},
-      %{name: "Thomas Jefferson"}
+      %{name: "George Washington", birthdate: ~D[1732-02-22]},
+      %{name: "John Adams", birthdate: ~D[1735-10-30]},
+      %{name: "Thomas Jefferson", birthdate: ~D[1743-04-13]}
     ]
 
     TestHelpers.mock_openai_response_stream(presidents)
@@ -199,9 +200,77 @@ defmodule InstructorTest do
     assert TestHelpers.is_stream?(result)
 
     assert [
-             {:ok, %{name: "George Washington"}},
-             {:ok, %{name: "John Adams"}},
-             {:ok, %{name: "Thomas Jefferson"}}
+             {:ok, %{name: "George Washington", birthdate: ~D[1732-02-22]}},
+             {:ok, %{name: "John Adams", birthdate: ~D[1735-10-30]}},
+             {:ok, %{name: "Thomas Jefferson", birthdate: ~D[1743-04-13]}}
+           ] = Enum.to_list(result)
+  end
+
+  test "stream partial object" do
+    president = %{name: "George Washington", birthdate: ~D[1732-02-22]}
+
+    TestHelpers.mock_openai_response_stream(president)
+
+    result =
+      Instructor.chat_completion(
+        model: "gpt-3.5-turbo",
+        stream: true,
+        response_model: {:partial, President},
+        messages: [
+          %{role: "user", content: "Who was the first president of the United States"}
+        ]
+      )
+
+    assert TestHelpers.is_stream?(result)
+
+    assert [
+             {:ok, %President{}},
+             {:ok, %President{}},
+             {:ok, %President{name: "George Washington"}},
+             {:ok, %President{name: "George Washington", birthdate: ~D[1732-02-22]}}
+           ] = Enum.to_list(result)
+  end
+
+  test "stream partial array of objects" do
+    presidents = [
+      %{name: "George Washington", birthdate: ~D[1732-02-22]},
+      %{name: "John Adams", birthdate: ~D[1735-10-30]}
+    ]
+
+    TestHelpers.mock_openai_response_stream(presidents)
+
+    result =
+      Instructor.chat_completion(
+        model: "gpt-3.5-turbo",
+        stream: true,
+        response_model: {:partial, {:array, President}},
+        messages: [
+          %{role: "user", content: "Who were the first 2 presidents of the United States"}
+        ]
+      )
+
+    assert TestHelpers.is_stream?(result)
+
+    result = Enum.filter(result, &(length(&1) > 0))
+
+    assert [
+             [ok: %President{}],
+             [ok: %President{name: "George Washington"}],
+             [
+               ok: %President{birthdate: ~D[1732-02-22], name: "George Washington"}
+             ],
+             [
+               ok: %President{birthdate: ~D[1732-02-22], name: "George Washington"},
+               ok: %President{}
+             ],
+             [
+               ok: %President{name: "George Washington", birthdate: ~D[1732-02-22]},
+               ok: %President{name: "John Adams"}
+             ],
+             [
+               ok: %President{name: "George Washington", birthdate: ~D[1732-02-22]},
+               ok: %President{name: "John Adams", birthdate: ~D[1735-10-30]}
+             ]
            ] = Enum.to_list(result)
   end
 end

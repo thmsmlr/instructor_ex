@@ -43,7 +43,7 @@ defmodule Instructor.TestHelpers do
 
   def mock_openai_response_stream(result) do
     chunks =
-      Jason.encode!(%{values: result})
+      Jason.encode!(%{value: result})
       |> String.graphemes()
       |> Enum.chunk_every(12)
       |> Enum.map(fn chunk ->

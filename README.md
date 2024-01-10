@@ -133,7 +133,7 @@ end
     - [x] Table Extraction
     - [x] Action Item and Dependency Mapping
     - [ ] Multi-File Code Generation
-    - [ ] PII Data Sanitization
+    - [ ] PII Data Sanitizatiommersed
 - [x] Update hexdocs homepage to include example for tutorial
 - [ ] Setup Github CI for testing, add badge to README
 
