@@ -6,8 +6,10 @@ _Structured, Ecto outputs with OpenAI (and OSS LLMs)_
 
 [![Instructor version](https://img.shields.io/hexpm/v/instructor.svg)](https://hex.pm/packages/instructor)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/instructor/)
+[![Hex Downloads](https://img.shields.io/hexpm/dt/instructor)](https://hex.pm/packages/instructor)
 [![GitHub stars](https://img.shields.io/github/stars/thmsmlr/instructor_ex.svg)](https://github.com/thmsmlr/instructor_ex/stargazers)
 [![Twitter Follow](https://img.shields.io/twitter/follow/thmsmlr?style=social)](https://twitter.com/thmsmlr)
+[![Discord](https://img.shields.io/discord/1192334452110659664?label=discord)](https://discord.gg/CV8sPM5k5Y)
 
 <!-- Docs -->
 
@@ -76,6 +78,11 @@ You can also provide a `validate_changeset/1` function via the `use Instructor.V
 
 **Curious to learn more? Unsure of how you'd use this? Check out our extensive set of [tutorials](https://hexdocs.pm/instructor/tutorial.html)**
 
+* [Tutorial - Basic Usage & Features](https://hexdocs.pm/instructor/tutorial.html)
+* [Text Classification](https://hexdocs.pm/instructor/text-classification.html)
+* [Extracting Action Items from Meeting Transcriptions](https://hexdocs.pm/instructor/extract-action-items-from-meeting-transcripts.html)
+* [Extracting Explorer.DataFrames from text](https://hexdocs.pm/instructor/text-to-dataframes.html)
+
 ## Configuration
 
 To configure the default OpenAI adapter you can set the configuration,
@@ -100,7 +107,7 @@ In your mix.exs,
 ```elixir
 def deps do
   [
-    {:instructor, "~> 0.0.2"}
+    {:instructor, "~> 0.0.3"}
   ]
 end
 ```
