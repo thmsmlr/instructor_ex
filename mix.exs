@@ -24,13 +24,16 @@ defmodule Instructor.MixProject do
       docs: [
         main: "Instructor",
         extras: [
-          "README.md",
-          "notebooks/tutorial.livemd",
-          "notebooks/text-classification.livemd",
-          "notebooks/extract-action-items-from-meeting-transcripts.livemd",
-          "notebooks/text-to-dataframes.livemd"
+          "docs/philosophy.md",
+          "docs/introduction-to-instructor.livemd",
+          "docs/cookbook/text-classification.livemd",
+          "docs/cookbook/extract-action-items-from-meeting-transcripts.livemd",
+          "docs/cookbook/text-to-dataframes.livemd"
         ],
-        extra_section: "GUIDES"
+        groups_for_extras: [
+          Cookbook: ~r"docs/cookbook/.*\.(md|livemd)"
+        ],
+        before_closing_body_tag: &before_closing_body_tag/1
       ],
       package: package()
     ]
@@ -60,11 +63,38 @@ defmodule Instructor.MixProject do
     ]
   end
 
+  def before_closing_body_tag(:html) do
+    """
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.2.3/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: document.body.className.includes("dark") ? "dark" : "default"
+        });
+        let id = 0;
+        for (const codeEl of document.querySelectorAll("pre code.mermaid")) {
+          const preEl = codeEl.parentElement;
+          const graphDefinition = codeEl.textContent;
+          const graphEl = document.createElement("div");
+          const graphId = "mermaid-graph-" + id++;
+          mermaid.render(graphId, graphDefinition).then(({svg, bindFunctions}) => {
+            graphEl.innerHTML = svg;
+            bindFunctions?.(graphEl);
+            preEl.insertAdjacentElement("afterend", graphEl);
+            preEl.remove();
+          });
+        }
+      });
+    </script>
+    """
+  end
+
+  def before_closing_body_tag(_), do: ""
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
       {:ecto, "~> 3.11"},
       {:openai, "~> 0.6.0"},
       {:jason, "~> 1.4.0"},

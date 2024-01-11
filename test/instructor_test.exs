@@ -224,9 +224,10 @@ defmodule InstructorTest do
     assert TestHelpers.is_stream?(result)
 
     assert [
-             {:ok, %President{}},
-             {:ok, %President{}},
-             {:ok, %President{name: "George Washington"}},
+             {:partial, %President{}},
+             {:partial, %President{}},
+             {:partial, %President{name: "George Washington"}},
+             {:partial, %President{name: "George Washington", birthdate: ~D[1732-02-22]}},
              {:ok, %President{name: "George Washington", birthdate: ~D[1732-02-22]}}
            ] = Enum.to_list(result)
   end

@@ -1,0 +1,396 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Introduction to Instructor
+
+```elixir
+Mix.install(
+  [
+    {:instructor, ">= 0.0.0"},
+    {:kino, "~> 0.12.2"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI
+    ],
+    openai: [
+      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
+      http_options: [recv_timeout: :infinity, async: :once]
+    ]
+  ]
+)
+```
+
+## Introduction
+
+Instructor is a library to do structured prompting with OpenAI and open source LLMs. While the idea is pretty simple, through this and the other examples you'll realize how powerful a concept this is.
+
+**So first off, what is structure prompting?**
+
+What if the LLM returned data conforming to a complicated nested schema that your code knows how to work with? Well, that's structure prompting. It's a way of cohercing the LLM to producing it's response in a known format that your downstream code can handle. In the case of Instructor, we use Ecto to provide those schemas. Good old Ecto, something you're already familiar with.
+
+So, without further ado, let's take define a schema and take it for a spin!
+
+```elixir
+defmodule Politician do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @doc """
+  A description of United States Politicians and the offices that they held,
+
+  ## Fields:
+  - first_name: Their first name
+  - last_name: Their last name
+  - offices_held:
+    - office: The branch and position in government they served in
+    - from_date: When they entered office or null
+    - until_date: The date they left office or null
+  """
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+
+    embeds_many :offices_held, Office, primary_key: false do
+      field(:office, Ecto.Enum,
+        values: [:president, :vice_president, :govenor, :congress, :senate]
+      )
+
+      field(:from_date, :date)
+      field(:to_date, :date)
+    end
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Politician, <<70, 79, 82, 49, 0, 0, 17, ...>>,
+ [__schema__: 1, __schema__: 1, __schema__: 1, __schema__: 1, __schema__: 2, __schema__: 2, ...]}
+```
+
+Great, we have our schema describing politicans and the offices they held. Let's notice a few things that may stand out from regular Ecto usage. First, since there is no database backing the schema, it doesn't make sense to give it a primary_key. This also makes sense because there is no sensible value for the LLM to respond with.
+
+Also we use a `@doc` on the schema. This isn't just for documentation purposes of the tutorial. Instructor will take any `@doc` tag and provide it to the LLM. Generally you'll want to use this to provide semantic descriptions of the fields and general context to the LLM to ensure you get the outputs you want. In our case we want to push the LLM to understand that we are only considering American politicians.
+
+So, let's try asking the LLM to give us some politicians.
+
+```elixir
+Instructor.chat_completion(
+  model: "gpt-3.5-turbo",
+  response_model: Politician,
+  messages: [
+    %{
+      role: "user",
+      content:
+        "Who won the American 2020 election and what offices have they held over their career?"
+    }
+  ]
+)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %Politician{
+   first_name: "Joe",
+   last_name: "Biden",
+   offices_held: [
+     %Politician.Office{office: :president, from_date: ~D[2021-01-20], to_date: nil},
+     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: ~D[2017-01-20]},
+     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: ~D[2009-01-15]}
+   ]
+ }}
+```
+
+Amazing, right? Using nothing more than one of the top libraries in Elixir, Ecto, we were able to get structured output from our LLM. The data returned is ready to be processed by our regular Elixir code. Instructor supports all field types that you can express in Ecto, including embedded and associated schemas.
+
+It's almost as if the LLM inputted the data into a Phoenix Form. All the utilities that you use to process that kind of data, you can use to process the outputs of Instructor.
+
+One of the superpowers of this is that since we're just using changesets under the hood, you can use the same validations that you would use elsewhere in your app. Let's look at that in the next section.
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## Validations
+
+Instructor provides a lightweight behavior where you can define a callback function that we will call to validate the data returned by the LLM using Ecto changesets. There is nothing fancy to this API. It's just a changeset in and a changeset out.
+
+```elixir
+defmodule NumberSeries do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @primary_key false
+  embedded_schema do
+    field(:series, {:array, :integer})
+  end
+
+  @impl true
+  def validate_changeset(changeset) do
+    changeset
+    |> Ecto.Changeset.validate_length(:series, min: 10)
+    |> Ecto.Changeset.validate_change(:series, fn
+      field, values ->
+        if Enum.sum(values) |> rem(2) == 0 do
+          []
+        else
+          [{field, "The sum of the series must be even"}]
+        end
+    end)
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, NumberSeries, <<70, 79, 82, 49, 0, 0, 18, ...>>, {:validate_changeset, 1}}
+```
+
+In this albeit contrived example, we're going to get the LLM to return a series of numbers and validate whether it has at least 10 numbers and that the sum of the series is even.
+
+When we ask for fewer than ten numbers, Instructor will return an error tuple with a change set that is invalid.
+
+```elixir
+{:error, changeset} =
+  Instructor.chat_completion(
+    model: "gpt-3.5-turbo",
+    response_model: NumberSeries,
+    messages: [
+      %{role: "user", content: "Give me the first 5 integers"}
+    ]
+  )
+
+# Render our the errors down to strings.
+errors =
+  Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+    Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
+      opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+    end)
+  end)
+
+{changeset.changes, errors}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{%{series: [1, 2, 3, 4, 5]},
+ %{series: ["The sum of the series must be even", "should have at least 10 item(s)"]}}
+```
+
+Now the beauty of this is that since we have human readable errors from our validations, we can just turn around and pass those back into the LLM to get it to fix its own errors.
+
+Instructor provides a convenience parameter, `max_retries` for you in the initial call which will retry against the validations up to n times.
+
+```elixir
+Instructor.chat_completion(
+  model: "gpt-3.5-turbo",
+  response_model: NumberSeries,
+  max_retries: 10,
+  messages: [
+    %{role: "user", content: "Give some random integers"}
+  ]
+)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+
+18:06:45.495 [debug] Retrying LLM call for NumberSeries...
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, %NumberSeries{series: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]}}
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## Record Streaming
+
+Now if you've used chatGPT's web interface, you know that these LLMs can stream responses one token at a time. You can imagine that this is pretty easy to implement in code as you just reduce across the stream accumulating the value and appending to the log. But doing this when you're using OpenAI's function calls, and where the data is structured in JSON, it's not trivial to implement streaming.
+
+Luckily we've done that work for you and we support two types of streaming in Instructor. The first is **record streaming** and the second is **partial streaming**.
+
+First let's take a look at record streaming.
+
+Record streaming is useful when you're asking the LLM for something that is naturally represented as an array of records. In this mode, we will instead of returning the full array, we'll return a stream that will emit each record once it's been completely streamed to the client, but before the next records tokens have arrived.
+
+For example, let's take our presidents example from earlier, and we can instead ask for the first 5 presidents of the United States streaming each result as they come in.
+
+```elixir
+presidents_stream =
+  Instructor.chat_completion(
+    model: "gpt-3.5-turbo",
+    stream: true,
+    response_model: {:array, Politician},
+    messages: [
+      %{role: "user", content: "Who are the first 5 presidents of the United States?"}
+    ]
+  )
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Stream<[
+  enum: #Function<60.53678557/2 in Stream.transform/3>,
+  funs: [#Function<48.53678557/1 in Stream.map/2>]
+]>
+```
+
+As you can see, instead of returning the result, we return a stream which can be run to emit each of the presidents.
+
+```elixir
+presidents_stream
+|> Stream.each(fn {:ok, politician} -> IO.inspect(politician) end)
+|> Stream.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%Politician{
+  first_name: "George",
+  last_name: "Washington",
+  offices_held: [
+    %Politician.Office{
+      office: :president,
+      from_date: ~D[1789-04-30],
+      to_date: ~D[1797-03-04]
+    }
+  ]
+}
+%Politician{
+  first_name: "John",
+  last_name: "Adams",
+  offices_held: [
+    %Politician.Office{
+      office: :vice_president,
+      from_date: ~D[1789-04-30],
+      to_date: ~D[1797-03-04]
+    },
+    %Politician.Office{
+      office: :president,
+      from_date: ~D[1797-03-04],
+      to_date: ~D[1801-03-04]
+    }
+  ]
+}
+%Politician{
+  first_name: "Thomas",
+  last_name: "Jefferson",
+  offices_held: [
+    %Politician.Office{
+      office: :vice_president,
+      from_date: ~D[1797-03-04],
+      to_date: ~D[1801-03-04]
+    },
+    %Politician.Office{
+      office: :president,
+      from_date: ~D[1801-03-04],
+      to_date: ~D[1809-03-04]
+    }
+  ]
+}
+%Politician{
+  first_name: "James",
+  last_name: "Madison",
+  offices_held: [
+    %Politician.Office{
+      office: :vice_president,
+      from_date: ~D[1801-03-04],
+      to_date: ~D[1809-03-04]
+    },
+    %Politician.Office{
+      office: :president,
+      from_date: ~D[1809-03-04],
+      to_date: ~D[1817-03-04]
+    }
+  ]
+}
+%Politician{
+  first_name: "James",
+  last_name: "Monroe",
+  offices_held: [
+    %Politician.Office{
+      office: :vice_president,
+      from_date: ~D[1809-03-04],
+      to_date: ~D[1817-03-04]
+    },
+    %Politician.Office{
+      office: :president,
+      from_date: ~D[1817-03-04],
+      to_date: ~D[1825-03-04]
+    }
+  ]
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+An important thing to note here is that we're running the validations independently for each value in the array.  That's why the values in the stream are either `{:ok, Ecto.Schema.t()}` or `{:error, Ecto.Changeset.t()}`.
+
+As a result, it's unclear how we can automatically do retries to fix validation errors. And therefore, when in streaming mode, it is the responsibility of the user to retry when validation errors occur. (We may revisit this decision in the future)
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## Partial Streaming
+
+The other streaming mode that we have an instructor is called partial streaming. In this mode, you can get back a stream that will emit the record multiple times with the fields updating as they arrive. This can be used with a schema or an array of schemas. Both are demonstrated below.
+
+This is useful in UI applications where you want to show instant feedback to the user about what data is showing up when without giving just some indeterminant loading spinner.
+
+```elixir
+Instructor.chat_completion(
+  model: "gpt-3.5-turbo",
+  stream: true,
+  response_model: {:partial, Politician},
+  messages: [
+    %{role: "user", content: "Who is the first president of the United States?"}
+  ]
+)
+|> Stream.each(fn
+  {:partial, politician} -> IO.puts("[Partial]: #{inspect(politician)}")
+  {:ok, politician} -> IO.puts("[Final]: #{inspect(politician)}")
+end)
+|> Stream.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[Final]: %Politician{first_name: nil, last_name: nil, offices_held: []}
+[Final]: %Politician{first_name: nil, last_name: nil, offices_held: []}
+[Final]: %Politician{first_name: "George", last_name: nil, offices_held: []}
+[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
+[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
+[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: nil, from_date: nil, to_date: nil}]}
+[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: nil, to_date: nil}]}
+[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: nil}]}
+[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: ~D[1797-03-04]}]}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+There is an important difference in this mode. Since your validations will be defined on the entirety of the object, it doesn't make sense to call the validate function until the entire record has been streamed in.
+
+Therefore, we introduce a new output tuple in the stream compared to regular record streaming. The value can be `{:partial, Ecto.Schema.t()}`, and then on the last emit of the stream it can be `{:error, Ecto.Changeset.t()}`, or `{:ok, Ecto.Schema.t()}`
+
+Like record streaming, however, using `max_retries` with this streaming mode does nothing and throws an error. (We may revisit this in the future when it's clear what such a behavior should do)
+
+<!-- livebook:{"offset":13621,"stamp":{"token":"XCP.0XXX6tN9G5urcGZa6-7fF6wuZc9jZ1Yu22QVeuImj77SdtUASvaAtI7RktTdk1pyyReZp6qUSRyoYhgVzzKlHCubcvPs7qNNTVXuyIJYb4y7CDQ36Ckdcvs","version":2}} -->

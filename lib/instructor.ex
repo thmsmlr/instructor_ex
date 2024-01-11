@@ -69,6 +69,13 @@ defmodule Instructor do
 
       {response_model, false} ->
         do_chat_completion(response_model, params)
+
+      {_, true} ->
+        raise """
+        Streaming not supported for response_model: #{inspect(response_model)}.
+
+        Make sure the response_model is a module that uses `Ecto.Schema` or is a valid Schemaless Ecto type definition.
+        """
     end
   end
 
@@ -164,26 +171,37 @@ defmodule Instructor do
     adapter().chat_completion(params)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
-    |> Stream.map(fn params ->
-      params = Map.get(params, "value", %{})
+    |> Stream.transform(
+      fn -> nil end,
+      # partial
+      fn params, _acc ->
+        params = Map.get(params, "value", %{})
 
-      model =
-        if is_ecto_schema(response_model) do
-          response_model.__struct__()
+        model =
+          if is_ecto_schema(response_model) do
+            response_model.__struct__()
+          else
+            {%{}, response_model}
+          end
+
+        changeset = cast_all(model, params)
+        model = changeset |> Ecto.Changeset.apply_changes()
+        {[{:partial, model}], changeset}
+      end,
+      # last
+      fn changeset ->
+        with {:validation, %Ecto.Changeset{valid?: true} = changeset} <-
+               {:validation, call_validate(response_model, changeset, validation_context)} do
+          model = changeset |> Ecto.Changeset.apply_changes()
+          {[{:ok, model}], nil}
         else
-          {%{}, response_model}
+          {:validation, changeset} -> [{:error, changeset}]
+          {:error, reason} -> {:error, reason}
+          e -> {:error, e}
         end
-
-      with changeset <- cast_all(model, params),
-           {:validation, %Ecto.Changeset{valid?: true} = changeset} <-
-             {:validation, call_validate(response_model, changeset, validation_context)} do
-        {:ok, changeset |> Ecto.Changeset.apply_changes()}
-      else
-        {:validation, changeset} -> {:error, changeset}
-        {:error, reason} -> {:error, reason}
-        e -> {:error, e}
-      end
-    end)
+      end,
+      fn _acc -> nil end
+    )
   end
 
   defp do_streaming_array_chat_completion(response_model, params) do
@@ -250,7 +268,7 @@ defmodule Instructor do
       {:validation, changeset, response} ->
         if max_retries > 0 do
           errors = Instructor.ErrorFormatter.format_errors(changeset)
-          Logger.debug("Retrying LLM call for #{inspect(response_model)}...", errors: errors)
+          Logger.debug("Retrying LLM call for #{inspect(response_model)}:\n\n #{inspect(errors)}", errors: errors)
 
           params =
             params
