@@ -51,7 +51,7 @@ end
 is_spam? = fn text ->
   Instructor.chat_completion(
     model: "gpt-3.5-turbo",
-    response_model: SpamPredicition,
+    response_model: SpamPrediction,
     max_retries: 3,
     messages: [
       %{
