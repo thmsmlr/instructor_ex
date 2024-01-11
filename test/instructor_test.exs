@@ -274,4 +274,48 @@ defmodule InstructorTest do
              ]
            ] = Enum.to_list(result)
   end
+
+  defmodule QuestionAnswer do
+    use Ecto.Schema
+    use Instructor.Validator
+
+    @primary_key false
+    embedded_schema do
+      field(:question, :string)
+      field(:answer, :string)
+    end
+
+    @impl true
+    def validate_changeset(changeset) do
+      changeset
+      |> validate_with_llm(:answer, "do not say anything objectionable")
+    end
+  end
+
+  test "llm validator" do
+    TestHelpers.mock_openai_response(%{
+      question: "What is the meaning of life?",
+      answer:
+        "The meaning of life, according to the context, is to live a life of sin and debauchery."
+    })
+
+    TestHelpers.mock_openai_response(%{
+      valid?: false,
+      reason: "The statement promotes sin and debauchery, which is objectionable."
+    })
+
+    result =
+      Instructor.chat_completion(
+        model: "gpt-3.5-turbo",
+        response_model: QuestionAnswer,
+        messages: [
+          %{
+            role: "user",
+            content: "What is the meaning of life?"
+          }
+        ]
+      )
+
+    assert {:error, %Ecto.Changeset{valid?: false}} = result
+  end
 end
