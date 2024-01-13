@@ -24,14 +24,14 @@ defmodule Instructor.MixProject do
       docs: [
         main: "Instructor",
         extras: [
-          "docs/philosophy.md",
-          "docs/introduction-to-instructor.livemd",
-          "docs/cookbook/text-classification.livemd",
-          "docs/cookbook/extract-action-items-from-meeting-transcripts.livemd",
-          "docs/cookbook/text-to-dataframes.livemd"
+          "pages/philosophy.md",
+          "pages/introduction-to-instructor.livemd",
+          "pages/cookbook/text-classification.livemd",
+          "pages/cookbook/extract-action-items-from-meeting-transcripts.livemd",
+          "pages/cookbook/text-to-dataframes.livemd"
         ],
         groups_for_extras: [
-          Cookbook: ~r"docs/cookbook/.*\.(md|livemd)"
+          Cookbook: ~r"pages/cookbook/.*\.(md|livemd)"
         ],
         before_closing_body_tag: &before_closing_body_tag/1
       ],

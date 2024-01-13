@@ -5,7 +5,8 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, ">= 0.0.0"},
+    # {:instructor, ">= 0.0.0"},
+    {:instructor, path: "/Users/thomas/code/instructor_ex"},
     {:kino, "~> 0.12.2"}
   ],
   config: [
@@ -99,8 +100,8 @@ Instructor.chat_completion(
    last_name: "Biden",
    offices_held: [
      %Politician.Office{office: :president, from_date: ~D[2021-01-20], to_date: nil},
-     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: ~D[2017-01-20]},
-     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: ~D[2009-01-15]}
+     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: nil},
+     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: nil}
    ]
  }}
 ```
@@ -200,14 +201,66 @@ Instructor.chat_completion(
 
 ```
 
-18:06:45.495 [debug] Retrying LLM call for NumberSeries...
+11:01:04.219 [debug] Retrying LLM call for NumberSeries:
 
+ "series - The sum of the series must be even\nseries - should have at least 10 item(s)"
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
 {:ok, %NumberSeries{series: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]}}
+```
+
+Here we demonstrated using regular Lixar code to validate the outputs of an LLM, but we don't have to stop there. We can actually use the LLM to validate the outputs of the LLM.
+
+In Instructor, we have provided a custom Ecto Changset validator called `validate_with_llm`. 
+Under the hood it just uses an instructor itself to check whether the field matches some condition that you have defined in plain text.
+
+```elixir
+defmodule QuestionAnswer do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @primary_key false
+  embedded_schema do
+    field(:question, :string)
+    field(:answer, :string)
+  end
+
+  @impl true
+  def validate_changeset(changeset) do
+    changeset
+    |> validate_with_llm(:answer, "Do not say anything objectionable")
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, QuestionAnswer, <<70, 79, 82, 49, 0, 0, 16, ...>>, {:validate_changeset, 1}}
+```
+
+```elixir
+%QuestionAnswer{}
+|> Instructor.cast_all(%{
+  question: "What is the meaning of life?",
+  answer: "Sex, drugs, and rock'n roll"
+})
+|> QuestionAnswer.validate_changeset()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Ecto.Changeset<
+  action: nil,
+  changes: %{question: "What is the meaning of life?", answer: "Sex, drugs, and rock'n roll"},
+  errors: [answer: {"is invalid, Do not say anything objectionable", []}],
+  data: #QuestionAnswer<>,
+  valid?: false
+>
 ```
 
 <!-- livebook:{"branch_parent_index":0} -->
@@ -370,14 +423,15 @@ end)
 <!-- livebook:{"output":true} -->
 
 ```
-[Final]: %Politician{first_name: nil, last_name: nil, offices_held: []}
-[Final]: %Politician{first_name: nil, last_name: nil, offices_held: []}
-[Final]: %Politician{first_name: "George", last_name: nil, offices_held: []}
-[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
-[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
-[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: nil, from_date: nil, to_date: nil}]}
-[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: nil, to_date: nil}]}
-[Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: nil}]}
+[Partial]: %Politician{first_name: nil, last_name: nil, offices_held: []}
+[Partial]: %Politician{first_name: nil, last_name: nil, offices_held: []}
+[Partial]: %Politician{first_name: "George", last_name: nil, offices_held: []}
+[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
+[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
+[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: nil, from_date: nil, to_date: nil}]}
+[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: nil, to_date: nil}]}
+[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: nil}]}
+[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: ~D[1797-03-04]}]}
 [Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: ~D[1797-03-04]}]}
 ```
 
@@ -393,4 +447,4 @@ Therefore, we introduce a new output tuple in the stream compared to regular rec
 
 Like record streaming, however, using `max_retries` with this streaming mode does nothing and throws an error. (We may revisit this in the future when it's clear what such a behavior should do)
 
-<!-- livebook:{"offset":13621,"stamp":{"token":"XCP.0XXX6tN9G5urcGZa6-7fF6wuZc9jZ1Yu22QVeuImj77SdtUASvaAtI7RktTdk1pyyReZp6qUSRyoYhgVzzKlHCubcvPs7qNNTVXuyIJYb4y7CDQ36Ckdcvs","version":2}} -->
+<!-- livebook:{"offset":15303,"stamp":{"token":"XCP.dr6A3JVTyvzTXkUxkyDGLoXx1iJRbAmqBo4KIp4VojJD7A2LoC4YXEMXc-4_55dtxE4AFCNGUsFocQ-NbHAmoBJ1zXVjvhM04QEa_Dmx00SpzeyPF5C1MhE","version":2}} -->
