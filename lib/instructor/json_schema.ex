@@ -1,5 +1,6 @@
 defmodule Instructor.JSONSchema do
   defguardp is_ecto_schema(mod) when is_atom(mod)
+  defguardp is_ecto_types(types) when is_map(types)
 
   @doc """
     Generates a JSON Schema from an Ecto schema.
@@ -13,7 +14,13 @@ defmodule Instructor.JSONSchema do
         {schema.title, schema}
       end
 
-    title = title_for(ecto_schema)
+    title =
+      if is_ecto_schema(ecto_schema) do
+        title_for(ecto_schema)
+      else
+        "root"
+      end
+
     title_ref = "#/$defs/#{title}"
 
     refs =
@@ -40,7 +47,7 @@ defmodule Instructor.JSONSchema do
     |> Jason.encode!()
   end
 
-  defp fetch_ecto_schema_doc(ecto_schema) do
+  defp fetch_ecto_schema_doc(ecto_schema) when is_ecto_schema(ecto_schema) do
     ecto_schema_struct_literal = "%#{title_for(ecto_schema)}{}"
 
     case Code.fetch_docs(ecto_schema) do
@@ -131,18 +138,20 @@ defmodule Instructor.JSONSchema do
     [schema | bfs_from_ecto_schema(rest, seen_schemas)]
   end
 
-  defp bfs_from_ecto_schema([ecto_types | rest], seen_schemas) do
+  defp bfs_from_ecto_schema([ecto_types | rest], seen_schemas)
+       when is_ecto_types(ecto_types) do
     properties =
       for {field, type} <- ecto_types, into: %{} do
         {field, for_type(type)}
       end
 
     required = Map.keys(properties)
-    title = title_for(ecto_types)
 
     embedded_schemas =
-      for {_field, {:parameterized, Ecto.Embedded, %Ecto.Embedded{related: type}}} <- ecto_types do
-        type
+      for {_field, {:parameterized, Ecto.Embedded, %Ecto.Embedded{related: related}}} <-
+            ecto_types,
+          is_ecto_schema(related) do
+        related
       end
 
     rest =
@@ -153,21 +162,18 @@ defmodule Instructor.JSONSchema do
 
     schema =
       %{
-        title: title,
+        title: "root",
         type: "object",
         required: required,
-        properties: properties,
-        description: ""
+        properties: properties
       }
 
     [schema | bfs_from_ecto_schema(rest, seen_schemas)]
   end
 
-  def title_for(ecto_schema) when is_ecto_schema(ecto_schema) do
+  defp title_for(ecto_schema) when is_ecto_schema(ecto_schema) do
     to_string(ecto_schema) |> String.trim_leading("Elixir.")
   end
-
-  def title_for(_ecto_types), do: "schema"
 
   # Find all values in a map or list that match a predicate
   defp find_all_values(map, pred) when is_map(map) do
@@ -209,8 +215,8 @@ defmodule Instructor.JSONSchema do
 
   defp for_type(:decimal), do: %{type: "number", format: "float"}
   defp for_type(:date), do: %{type: "string", format: "date"}
-  defp for_type(:time), do: %{type: "string"}
-  defp for_type(:time_usec), do: %{type: "string"}
+  defp for_type(:time), do: %{type: "string", pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"}
+  defp for_type(:time_usec), do: %{type: "string", pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"}
   defp for_type(:naive_datetime), do: %{type: "string", format: "date-time"}
   defp for_type(:naive_datetime_usec), do: %{type: "string", format: "date-time"}
   defp for_type(:utc_datetime), do: %{type: "string", format: "date-time"}
@@ -218,7 +224,8 @@ defmodule Instructor.JSONSchema do
 
   defp for_type(
          {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}
-       ) do
+       )
+       when is_ecto_schema(related) do
     title = title_for(related)
 
     %{
@@ -229,9 +236,49 @@ defmodule Instructor.JSONSchema do
   end
 
   defp for_type(
+         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}
+       )
+       when is_ecto_types(related) do
+    properties =
+      for {field, type} <- related, into: %{} do
+        {field, for_type(type)}
+      end
+
+    required = Map.keys(properties)
+
+    %{
+      items: %{
+        type: "object",
+        required: required,
+        properties: properties
+      },
+      type: "array"
+    }
+  end
+
+  defp for_type(
          {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}
-       ) do
+       )
+       when is_ecto_schema(related) do
     %{"$ref": "#/$defs/#{title_for(related)}"}
+  end
+
+  defp for_type(
+         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}
+       )
+       when is_ecto_types(related) do
+    properties =
+      for {field, type} <- related, into: %{} do
+        {field, for_type(type)}
+      end
+
+    required = Map.keys(properties)
+
+    %{
+      type: "object",
+      required: required,
+      properties: properties
+    }
   end
 
   defp for_type({:parameterized, Ecto.Enum, %{mappings: mappings}}) do

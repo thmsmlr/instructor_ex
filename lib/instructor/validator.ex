@@ -105,7 +105,7 @@ defmodule Instructor.Validator do
             %{
               role: "system",
               content: """
-              You are a world class validation model. Capable to determine if the following value is valid for the statement, if it is not, explain why and suggest a new value.
+              You are a world class validation model. Capable to determine if the following value is valid for the statement, if it is not, explain why.
               """
             },
             %{

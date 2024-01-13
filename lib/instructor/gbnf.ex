@@ -21,8 +21,13 @@ defmodule Instructor.GBNF do
   string-char ::= [^"\\\\] | "\\\\" (["\\\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]) # escapes
 
   # ISO8601 date format
-  date ::= [0-9][0-9][0-9][0-9] "-" [0-9][0-9] "-" [0-9][0-9]
-  datetime ::= date "T" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] ("." [0-9]+)? ("Z" | ("+" | "-") [0-9][0-9] ":" [0-9][0-9])
+  date--val ::= [0-9][0-9][0-9][0-9] "-" [0-9][0-9] "-" [0-9][0-9]
+  datetime--val ::= date--val "T" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] ("." [0-9]+)? ("Z" | ("+" | "-") [0-9][0-9] ":" [0-9][0-9])
+  date ::= "\\"" date--val "\\""
+  datetime ::= "\\"" datetime--val "\\""
+
+  time ::= "\\"" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] "\\""
+  time-usec ::= "\\"" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] "." [0-9][0-9][0-9][0-9][0-9][0-9] "\\""
 
   number ::= integer ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
   integer ::= "-"? ([0-9] | [1-9] [0-9]*)
@@ -48,10 +53,11 @@ defmodule Instructor.GBNF do
     defs =
       Map.get(json_schema, "$defs", [])
       |> Enum.map_join("\n\n", fn {schema, definition} ->
-        definition_to_gbnf(schema, definition)
+        {_, val} = for_type(sanitize(schema), definition)
+        val
       end)
 
-    root = definition_to_gbnf("root", json_schema)
+    {_, root} = for_type("root", json_schema)
 
     """
     #{root}
@@ -60,69 +66,108 @@ defmodule Instructor.GBNF do
     """
   end
 
-  defp definition_to_gbnf(schema, definition) do
+  defp sanitize(x),
+    do: x |> String.replace("_", "-") |> String.replace("?", "") |> String.replace(".", "-")
+
+  defp for_type(_schema, %{"type" => "integer"}), do: {"integer", ""}
+  defp for_type(_schema, %{"format" => "float", "type" => "number"}), do: {"number", ""}
+  defp for_type(_schema, %{"type" => "boolean"}), do: {"boolean", ""}
+  defp for_type(_schema, %{"format" => "date", "type" => "string"}), do: {"date", ""}
+  defp for_type(_schema, %{"format" => "date-time", "type" => "string"}), do: {"datetime", ""}
+
+  defp for_type(_schema, %{"type" => "string", "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"}),
+    do: {"time", ""}
+
+  defp for_type(_schema, %{
+         "type" => "string",
+         "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"
+       }),
+       do: {"time-usec", ""}
+
+  defp for_type(_schema, %{"type" => "string"}), do: {"string", ""}
+
+  defp for_type(_schema, %{"$ref" => ref}) do
+    ref = ref |> String.replace("#/$defs/", "") |> sanitize()
+    {"#{ref}", ""}
+  end
+
+  defp for_type(schema, %{"items" => type, "type" => "array"}) do
+    {subtype, additional_defs} = for_type(sanitize(schema), type)
+
+    additional_defs =
+      """
+      #{schema} ::=
+          "[" ws01 (
+                  #{subtype}
+              ("," ws01 #{subtype})*
+          )? "]"
+
+      #{additional_defs}
+      """
+
+    {"#{schema}", additional_defs}
+  end
+
+  defp for_type(schema, %{"type" => "object", "additionalProperties" => %{"type" => type}}) do
+    {subtype, additional_defs} = for_type(sanitize(schema), %{"type" => type})
+
+    additional_defs =
+      """
+      #{schema} ::=
+          "{" ws (
+              string ":" ws #{subtype}
+              ("," ws string ":" ws #{subtype})*
+          )? "}"
+
+      #{additional_defs}
+      """
+
+    {"#{schema}", additional_defs}
+  end
+
+  defp for_type(schema, %{"type" => "object", "additionalProperties" => %{}}) do
+    additional_defs =
+      """
+      #{schema} ::=
+          "{" ws (
+              string ":" ws value
+              ("," ws string ":" ws value)*
+          )? "}"
+      """
+
+    {"#{schema}", additional_defs}
+  end
+
+  defp for_type(schema, %{"type" => "object", "properties" => _properties} = definition) do
     property_gbnfs =
       definition["properties"]
       |> Enum.map_join("\n", fn {property, val} ->
-        "#{schema}-#{sanitize(property)} ::= \"\\\"#{property}\\\"\" \"\:\" ws01 #{for_type(val)}"
+        {type, additional_defs} = for_type("#{sanitize(schema)}-#{sanitize(property)}", val)
+
+        definition =
+          "#{schema}-#{sanitize(property)}--prop ::= \"\\\"#{property}\\\"\" \"\:\" ws01 #{type}"
+
+        """
+        #{definition}
+        #{additional_defs}
+        """
       end)
 
     schema_gbnf =
       definition["properties"]
       |> Enum.map_join(" \",\" ", fn {property, _val} ->
-        "ws01 #{schema}-#{sanitize(property)}"
+        "ws01 #{schema}-#{sanitize(property)}--prop"
       end)
       |> then(&" \"{\" #{&1} \"}\" ws01 ")
 
-    """
+    additional_defs = """
     #{schema} ::= #{schema_gbnf}
     #{property_gbnfs}
     """
+
+    {schema, additional_defs}
   end
 
-  defp sanitize(x), do: x |> String.replace("_", "-") |> String.replace("?", "")
-
-  defp for_type(%{"type" => "integer"}), do: "integer"
-  defp for_type(%{"format" => "float", "type" => "number"}), do: "number"
-  defp for_type(%{"type" => "boolean"}), do: "boolean"
-  defp for_type(%{"format" => "date", "type" => "string"}), do: "date"
-  defp for_type(%{"format" => "date-time", "type" => "string"}), do: "datetime"
-  defp for_type(%{"type" => "string"}), do: "string"
-
-  defp for_type(%{"items" => %{"type" => type}, "title" => "array", "type" => "array"}) do
-    subtype = for_type(%{"type" => type})
-
-    """
-    array  ::=
-        "[" ws01 (
-                #{subtype}
-            ("," ws01 #{subtype})*
-        )? "]"
-    """
-  end
-
-  defp for_type(%{"type" => "object", "additionalProperties" => %{"type" => type}}) do
-    subtype = for_type(%{"type" => type})
-
-    """
-    object ::=
-        "{" ws (
-            string ":" ws #{subtype}
-            ("," ws string ":" ws #{subtype})*
-        )? "}"
-    """
-  end
-
-  defp for_type(%{"type" => "object", "additionalProperties" => %{}}) do
-    """
-    object ::=
-        "{" ws (
-            string ":" ws value
-            ("," ws string ":" ws value)*
-        )? "}"
-    """
-  end
-
-  defp for_type(%{"type" => "string", "enum" => enum}),
-    do: "(" <> Enum.map_join(enum, " | ", &"\"\\\"#{&1}\\\"\"") <> ")"
+  defp for_type(_schema, %{"type" => "string", "enum" => enum}),
+    do: {"(" <> Enum.map_join(enum, " | ", &"\"\\\"#{&1}\\\"\"") <> ")", []}
 end

@@ -37,44 +37,89 @@ defmodule Instructor.Adapters.Llamacpp do
 
     json_schema = JSONSchema.from_ecto_schema(response_model)
     grammar = GBNF.from_json_schema(json_schema)
-    title = JSONSchema.title_for(response_model)
+    prompt = apply_chat_template(:mistral_instruct, messages)
+    stream = Keyword.get(params, :stream, false)
 
-    messages = [
-      %{
-        role: "system",
-        content: """
-          As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
+    if stream do
+      do_streaming_chat_completion(prompt, grammar)
+    else
+      do_chat_completion(prompt, grammar)
+    end
+  end
 
-          #{grammar}
-        """
-      }
-      | messages
-    ]
+  defp do_streaming_chat_completion(prompt, grammar) do
+    pid = self()
 
-    prompt = apply_chat_template(:tiny_llama, messages)
+    Stream.resource(
+      fn ->
+        Task.async(fn ->
+          Req.post!("http://localhost:8080/completion",
+            json: %{
+              grammar: grammar,
+              prompt: prompt,
+              stream: true
+            },
+            receive_timeout: 60_000,
+            into: fn {:data, data}, {req, resp} ->
+              send(pid, data)
+              {:cont, {req, resp}}
+            end
+          )
 
+          send(pid, :done)
+        end)
+      end,
+      fn acc ->
+        receive do
+          :done ->
+            {:halt, acc}
+
+          "data: " <> data ->
+            data = Jason.decode!(data)
+            {[data], acc}
+        end
+      end,
+      fn acc -> acc end
+    )
+    |> Stream.map(fn %{"content" => chunk} ->
+      to_openai_streaming_response(chunk)
+    end)
+  end
+
+  defp to_openai_streaming_response(chunk) when is_binary(chunk) do
+    %{
+      "choices" => [
+        %{"delta" => %{"tool_calls" => [%{"function" => %{"arguments" => chunk}}]}}
+      ]
+    }
+  end
+
+  defp do_chat_completion(prompt, grammar) do
     response =
       Req.post!("http://localhost:8080/completion",
-        json: %{grammar: grammar, prompt: prompt},
+        json: %{
+          grammar: grammar,
+          prompt: prompt
+        },
         receive_timeout: 60_000
       )
 
     case response do
       %{status: 200, body: %{"content" => params}} ->
-        {:ok, to_openai_response(title, params)}
+        {:ok, to_openai_response(params)}
 
       _ ->
         nil
     end
   end
 
-  defp to_openai_response(title, params) do
+  defp to_openai_response(params) do
     %{
       choices: [
         %{
           "message" => %{
             "tool_calls" => [
-              %{"id" => title, "function" => %{"name" => title, "arguments" => params}}
+              %{"id" => "schema", "function" => %{"name" => "schema", "arguments" => params}}
             ]
           }
         }

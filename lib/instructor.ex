@@ -126,35 +126,68 @@ defmodule Instructor do
          %Ecto.Embedded{cardinality: :many, related: response_model}}
     }
 
+    params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_tool(mode, wrapped_model, params)
 
+    model =
+      if is_ecto_schema(response_model) do
+        response_model.__struct__()
+      else
+        {%{}, response_model}
+      end
+
     adapter().chat_completion(params)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
-    |> Stream.map(fn params ->
-      params = Map.get(params, "value", [])
+    |> Stream.transform(
+      fn -> {nil, []} end,
+      # reducer
+      fn
+        %{"value" => []}, {last, acc} ->
+          {[], {last, acc}}
 
-      Enum.map(params, fn params ->
-        model =
-          if is_ecto_schema(response_model) do
-            response_model.__struct__()
+        %{"value" => params_array}, {last, acc} ->
+          acc =
+            if length(params_array) == length(acc) + 2 do
+              with changeset <- cast_all(model, Map.from_struct(last)),
+                   {:validation, %Ecto.Changeset{valid?: true} = changeset} <-
+                     {:validation, call_validate(response_model, changeset, validation_context)} do
+                acc ++ [{:ok, changeset |> Ecto.Changeset.apply_changes()}]
+              else
+                {:validation, changeset} -> acc ++ [{:error, changeset}]
+                {:error, reason} -> acc ++ [{:error, reason}]
+                e -> acc ++ [{:error, e}]
+              end
+            else
+              acc
+            end
+
+          params = List.last(params_array)
+          last = model |> cast_all(params) |> Ecto.Changeset.apply_changes()
+          {[acc ++ [{:partial, last}]], {last, acc}}
+
+        %{}, acc ->
+          {[], acc}
+      end,
+      # last, validate last entry, emit all
+      fn {last, acc} ->
+        acc =
+          with changeset <- cast_all(model, Map.from_struct(last)),
+               {:validation, %Ecto.Changeset{valid?: true} = changeset} <-
+                 {:validation, call_validate(response_model, changeset, validation_context)} do
+            acc ++ [{:ok, changeset |> Ecto.Changeset.apply_changes()}]
           else
-            {%{}, response_model}
+            {:validation, changeset} -> acc ++ [{:error, changeset}]
+            {:error, reason} -> acc ++ [{:error, reason}]
+            e -> acc ++ [{:error, e}]
           end
 
-        with changeset <- cast_all(model, params),
-             {:validation, %Ecto.Changeset{valid?: true} = changeset} <-
-               {:validation, call_validate(response_model, changeset, validation_context)} do
-          {:ok, changeset |> Ecto.Changeset.apply_changes()}
-        else
-          {:validation, changeset} -> {:error, changeset}
-          {:error, reason} -> {:error, reason}
-          e -> {:error, e}
-        end
-      end)
-    end)
+        {[acc], nil}
+      end,
+      fn _acc -> nil end
+    )
   end
 
   defp do_streaming_partial_chat_completion(response_model, params) do
@@ -164,6 +197,7 @@ defmodule Instructor do
          %Ecto.Embedded{cardinality: :one, related: response_model}}
     }
 
+    params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_tool(mode, wrapped_model, params)
@@ -211,6 +245,7 @@ defmodule Instructor do
          %Ecto.Embedded{cardinality: :many, related: response_model}}
     }
 
+    params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_tool(mode, wrapped_model, params)
@@ -268,7 +303,10 @@ defmodule Instructor do
       {:validation, changeset, response} ->
         if max_retries > 0 do
           errors = Instructor.ErrorFormatter.format_errors(changeset)
-          Logger.debug("Retrying LLM call for #{inspect(response_model)}:\n\n #{inspect(errors)}", errors: errors)
+
+          Logger.debug("Retrying LLM call for #{inspect(response_model)}:\n\n #{inspect(errors)}",
+            errors: errors
+          )
 
           params =
             params
@@ -349,7 +387,6 @@ defmodule Instructor do
 
   defp params_for_tool(:tools, response_model, params) do
     json_schema = JSONSchema.from_ecto_schema(response_model)
-    title = JSONSchema.title_for(response_model) |> sanitize()
 
     params =
       params
@@ -370,22 +407,19 @@ defmodule Instructor do
           type: "function",
           function: %{
             "description" =>
-              "Correctly extracted `#{title}` with all the required parameters with correct types",
-            "name" => title,
+              "Correctly extracted `Schema` with all the required parameters with correct types",
+            "name" => "Schema",
             "parameters" => json_schema |> Jason.decode!()
           }
         }
       ])
       |> Keyword.put(:tool_choice, %{
         type: "function",
-        function: %{name: title}
+        function: %{name: "Schema"}
       })
 
     params
   end
-
-  defp sanitize(title),
-    do: title |> String.replace("_", "-") |> String.replace("?", "") |> String.replace(".", "-")
 
   defp call_validate(response_model, changeset, context) do
     cond do

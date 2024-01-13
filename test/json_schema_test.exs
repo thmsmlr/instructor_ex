@@ -316,4 +316,52 @@ defmodule JSONSchemaTest do
 
     assert json_schema == expected_json_schema
   end
+
+  test "handles ecto types with embeds recursively" do
+    schema = %{
+      value:
+        {:parameterized, Ecto.Embedded,
+         %Ecto.Embedded{
+           cardinality: :one,
+           related: %{
+             name: :string,
+             children:
+               {:parameterized, Ecto.Embedded,
+                %Ecto.Embedded{
+                  cardinality: :many,
+                  related: %{name: :string}
+                }}
+           }
+         }}
+    }
+
+    json_schema =
+      JSONSchema.from_ecto_schema(schema)
+      |> Jason.decode!()
+
+    expected_json_schema = %{
+      "properties" => %{
+        "value" => %{
+          "properties" => %{
+            "name" => %{"type" => "string"},
+            "children" => %{
+              "items" => %{
+                "properties" => %{"name" => %{"type" => "string"}},
+                "required" => ["name"],
+                "type" => "object"
+              },
+              "type" => "array"
+            }
+          },
+          "required" => ["name", "children"],
+          "type" => "object"
+        }
+      },
+      "required" => ["value"],
+      "type" => "object",
+      "title" => "root"
+    }
+
+    assert json_schema == expected_json_schema
+  end
 end

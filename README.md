@@ -117,15 +117,15 @@ end
 - [ ] llamacpp adapter broken, needs to support openai input/output API
   - [ ] GBNF should enforce required properties on objects, currently they're optional.
   - [ ] GBNF limit the number of digits in number tokens -- small models can sometimes run off to infinit digits
-- [ ] Add `llm_validator`
+- [ ] Add instructor tests against llamacpp interface using mocks, there's non-trivial logic in there
 - [ ] Logging for Distillation / Finetuning
 - [ ] Add a Bumblebee adapter
 - [ ] Add llamacpp_ex adapter
+- [ ] Support naked ecto types by auto-wrapping, not just maps of ecto types, do not wrap if we don't need to... Current codepaths are muddled
 - [x] Support Streaming
   - [ ] Verify schemaless support `{:array, %{name: :string}}`
   - [ ] Support typespec style support for array streaming `[MySchema]`
 - [ ] Optional/Maybe types
-- [ ] When changeset fails to cast, it should show the underlying data (better error messages)
 - [ ] Add Livebook Tutorials, include in Hexdocs
     - [x] Text Classification
     - [ ] Self Critique
