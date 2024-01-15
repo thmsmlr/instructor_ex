@@ -136,8 +136,16 @@ defmodule JSONSchemaTest do
           "format" => "date-time"
         },
         "string" => %{"title" => "string", "type" => "string"},
-        "time" => %{"title" => "time", "type" => "string"},
-        "time_usec" => %{"title" => "time_usec", "type" => "string"},
+        "time" => %{
+          "title" => "time",
+          "type" => "string",
+          "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"
+        },
+        "time_usec" => %{
+          "title" => "time_usec",
+          "type" => "string",
+          "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"
+        },
         "utc_datetime" => %{
           "title" => "utc_datetime",
           "type" => "string",

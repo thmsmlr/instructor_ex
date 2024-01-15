@@ -72,8 +72,8 @@ defmodule GBNFTest do
         root-naive-datetime--prop ::= "\\"naive_datetime\\"" ":" ws01 datetime
         root-naive-datetime-usec--prop ::= "\\"naive_datetime_usec\\"" ":" ws01 datetime
         root-string--prop ::= "\\"string\\"" ":" ws01 string
-        root-time--prop ::= "\\"time\\"" ":" ws01 string
-        root-time-usec--prop ::= "\\"time_usec\\"" ":" ws01 string
+        root-time--prop ::= "\\"time\\"" ":" ws01 time
+        root-time-usec--prop ::= "\\"time_usec\\"" ":" ws01 time-usec
         root-utc-datetime--prop ::= "\\"utc_datetime\\"" ":" ws01 datetime
         root-utc-datetime-usec--prop ::= "\\"utc_datetime_usec\\"" ":" ws01 datetime
 
@@ -101,6 +101,9 @@ defmodule GBNFTest do
         datetime--val ::= date--val "T" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] ("." [0-9]+)? ("Z" | ("+" | "-") [0-9][0-9] ":" [0-9][0-9])
         date ::= "\\"" date--val "\\""
         datetime ::= "\\"" datetime--val "\\""
+
+        time ::= "\\"" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] "\\""
+        time-usec ::= "\\"" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] "." [0-9][0-9][0-9][0-9][0-9][0-9] "\\""
 
         number ::= integer ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
         integer ::= "-"? ([0-9] | [1-9] [0-9]*)
@@ -170,6 +173,9 @@ defmodule GBNFTest do
         date ::= "\\"" date--val "\\""
         datetime ::= "\\"" datetime--val "\\""
 
+        time ::= "\\"" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] "\\""
+        time-usec ::= "\\"" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] "." [0-9][0-9][0-9][0-9][0-9][0-9] "\\""
+
         number ::= integer ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
         integer ::= "-"? ([0-9] | [1-9] [0-9]*)
         boolean ::= "true" | "false"
@@ -235,6 +241,9 @@ defmodule GBNFTest do
         datetime--val ::= date--val "T" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] ("." [0-9]+)? ("Z" | ("+" | "-") [0-9][0-9] ":" [0-9][0-9])
         date ::= "\\"" date--val "\\""
         datetime ::= "\\"" datetime--val "\\""
+
+        time ::= "\\"" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] "\\""
+        time-usec ::= "\\"" [0-9][0-9] ":" [0-9][0-9] ":" [0-9][0-9] "." [0-9][0-9][0-9][0-9][0-9][0-9] "\\""
 
         number ::= integer ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
         integer ::= "-"? ([0-9] | [1-9] [0-9]*)
