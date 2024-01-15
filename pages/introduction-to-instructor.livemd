@@ -100,8 +100,8 @@ Instructor.chat_completion(
    last_name: "Biden",
    offices_held: [
      %Politician.Office{office: :president, from_date: ~D[2021-01-20], to_date: nil},
-     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: nil},
-     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: nil}
+     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: ~D[2017-01-20]},
+     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: ~D[2009-01-15]}
    ]
  }}
 ```
@@ -447,4 +447,84 @@ Therefore, we introduce a new output tuple in the stream compared to regular rec
 
 Like record streaming, however, using `max_retries` with this streaming mode does nothing and throws an error. (We may revisit this in the future when it's clear what such a behavior should do)
 
-<!-- livebook:{"offset":15303,"stamp":{"token":"XCP.dr6A3JVTyvzTXkUxkyDGLoXx1iJRbAmqBo4KIp4VojJD7A2LoC4YXEMXc-4_55dtxE4AFCNGUsFocQ-NbHAmoBJ1zXVjvhM04QEa_Dmx00SpzeyPF5C1MhE","version":2}} -->
+<!-- livebook:{"branch_parent_index":0} -->
+
+## Custom Ecto Types
+
+Instructor supports all the Ecto types out of the box, but sometimes you need more. And that's why Instructor provides a behavior that you can implement on your own custom Ecto types. All you have to do is implement `to_json_schema/0`.
+
+Whatever you return from this function will be put as the field type. See the [JSONSchema Specification](https://json-schema.org/understanding-json-schema/reference) for more information on what you can put here. Typically you'll see people put `description`, `type`, and maybe `format`.
+
+```elixir
+defmodule EctoURI do
+  use Ecto.Type
+  use Instructor.EctoType
+
+  def type, do: :map
+
+  # This is it, the rest is for implementing a regular old ecto type.
+  def to_json_schema() do
+    %{
+      type: "string",
+      description: "A valid URL"
+    }
+  end
+
+  def cast(uri) when is_binary(uri) do
+    {:ok, URI.parse(uri)}
+  end
+
+  def cast(%URI{} = uri), do: {:ok, uri}
+  def cast(_), do: :error
+
+  def load(data) when is_map(data) do
+    data =
+      for {key, val} <- data do
+        {String.to_existing_atom(key), val}
+      end
+
+    {:ok, struct!(URI, data)}
+  end
+
+  def dump(%URI{} = uri), do: {:ok, Map.from_struct(uri)}
+  def dump(_), do: :error
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, EctoURI, <<70, 79, 82, 49, 0, 0, 14, ...>>, {:dump, 1}}
+```
+
+```elixir
+Instructor.chat_completion(
+  model: "gpt-3.5-turbo",
+  response_model: %{url: EctoURI},
+  messages: [
+    %{role: "user", content: "Give me the URL for Google"}
+  ]
+)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %{
+   url: %URI{
+     scheme: "https",
+     authority: "www.google.com",
+     userinfo: nil,
+     host: "www.google.com",
+     port: 443,
+     path: nil,
+     query: nil,
+     fragment: nil
+   }
+ }}
+```
+
+And just like that, you can extend Instructor to get the LLM to return whatever you want.
+
+<!-- livebook:{"offset":17225,"stamp":{"token":"XCP.cMh-BETtuUB6vlE5dTYOGGUpGCuWmylcyIrzNBoLMeLhDwUpmnOWKvrMMu0_SzDHdGeLNfX-IYPygXqsPx8FIzGdlr6hDiuMj71MQZKdMQO3QgYDlwnbgps","version":2}} -->

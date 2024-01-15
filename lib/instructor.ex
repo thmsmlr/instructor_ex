@@ -25,29 +25,73 @@ defmodule Instructor do
 
   Additionally, the following parameters are supported:
 
-    * `:response_model` - The Ecto schema to validate the response against.
+    * `:response_model` - The Ecto schema to validate the response against, or a valid map of Ecto types (see [Schemaless Ecto](https://hexdocs.pm/ecto/Ecto.Changeset.html#module-schemaless-changesets)).
+    * `:stream` - Whether to stream the response or not. (defaults to `false`)
+    * `:validation_context` - The validation context to use when validating the response. (defaults to `%{}`)
+    * `:mode` - The mode to use when parsing the response. (defaults to `:tools`)
     * `:max_retries` - The maximum number of times to retry the LLM call if it fails, or does not pass validations.
                        (defaults to `0`)
 
   ## Examples
 
-    iex> Instructor.chat_completion(%{
-    ...>   model: "gpt-3.5-turbo",
-    ...>   response_model: Instructor.Demos.SpamPrediction,
-    ...>   messages: [
-    ...>     %{
-    ...>       role: "user",
-    ...>       content: "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
-    ...>     }
-    ...> })
-    {:ok,
-        %Instructor.Demos.SpamPrediction{
-            class: :spam
-            score: 0.999
-        }}
+      iex> Instructor.chat_completion(%{
+      ...>   model: "gpt-3.5-turbo",
+      ...>   response_model: Instructor.Demos.SpamPrediction,
+      ...>   messages: [
+      ...>     %{
+      ...>       role: "user",
+      ...>       content: "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
+      ...>     }
+      ...> })
+      {:ok,
+          %Instructor.Demos.SpamPrediction{
+              class: :spam
+              score: 0.999
+          }}
+
+  When you're using Instructor in Streaming Mode, instead of returning back a tuple, it will return back a stream that emits tuples.
+  There are two main streaming modes available. array streaming and partial streaming.
+
+  Partial streaming will emit the record multiple times until it's complete.
+
+      iex> Instructor.chat_completion(%{
+      ...>   model: "gpt-3.5-turbo",
+      ...>   response_model: {:partial, %{name: :string, birth_date: :date}}
+      ...>   messages: [
+      ...>     %{
+      ...>       role: "user",
+      ...>       content: "Who is the first president of the United States?"
+      ...>     }
+      ...> }) |> Enum.to_list()
+      [
+        {:partial, %{name: "George Washington"}},
+        {:partial, %{name: "George Washington", birth_date: ~D[1732-02-22]}},
+        {:ok, %{name: "George Washington", birth_date: ~D[1732-02-22]}}
+      ]
+
+  Whereas with array streaming, you can ask the LLM to return multiple instances of your Ecto schema,
+  and instructor will emit them one at a time as they arrive in complete form and validated.
+
+      iex> Instructor.chat_completion(%{
+      ...>   model: "gpt-3.5-turbo",
+      ...>   response_model: {:array, %{name: :string, birth_date: :date}}
+      ...>   messages: [
+      ...>     %{
+      ...>       role: "user",
+      ...>       content: "Who are the first 5 presidents of the United States?"
+      ...>     }
+      ...> }) |> Enum.to_list()
+
+      [
+        {:ok, %{name: "George Washington", birth_date: ~D[1732-02-22]}},
+        {:ok, %{name: "John Adams", birth_date: ~D[1735-10-30]}},
+        {:ok, %{name: "Thomas Jefferson", birth_date: ~D[1743-04-13]}},
+        {:ok, %{name: "James Madison", birth_date: ~D[1751-03-16]}},
+        {:ok, %{name: "James Monroe", birth_date: ~D[1758-04-28]}}
+      ]
   """
   @spec chat_completion(Keyword.t()) ::
-          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()} | {:error, String.t()}
+          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()} | {:error, String.t()} | Stream.t()
   def chat_completion(params) do
     params =
       params
@@ -79,6 +123,76 @@ defmodule Instructor do
     end
   end
 
+  @doc """
+  Casts all the parameters in the params map to the types defined in the types map.
+  This works both with Ecto Schemas and maps of Ecto types (see [Schemaless Ecto](https://hexdocs.pm/ecto/Ecto.Changeset.html#module-schemaless-changesets)).
+
+  ## Examples
+
+  When using a full Ecto Schema
+
+      iex> Instructor.cast_all(%{
+      ...>   data: %Instructor.Demos.SpamPrediction{},
+      ...>   types: %{
+      ...>     class: :string,
+      ...>     score: :float
+      ...>   }
+      ...> }, %{
+      ...>   class: "spam",
+      ...>   score: 0.999
+      ...> })
+      %Ecto.Changeset{
+        action: nil,
+        changes: %{
+          class: "spam",
+          score: 0.999
+        },
+        errors: [],
+        data: %Instructor.Demos.SpamPrediction{
+          class: :spam,
+          score: 0.999
+        },
+        valid?: true
+      }
+
+  When using a map of Ecto types
+
+      iex> Instructor.cast_all(%Instructor.Demo.SpamPrediction{}, %{
+      ...>   class: "spam",
+      ...>   score: 0.999
+      ...> })
+      %Ecto.Changeset{
+        action: nil,
+        changes: %{
+          class: "spam",
+          score: 0.999
+        },
+        errors: [],
+        data: %{
+          class: :spam,
+          score: 0.999
+        },
+        valid?: true
+      }
+
+  and when using raw Ecto types,
+
+      iex> Instructor.cast_all({%{},%{name: :string}, %{
+      ...>   name: "George Washington"
+      ...> })
+      %Ecto.Changeset{
+        action: nil,
+        changes: %{
+          name: "George Washington",
+        },
+        errors: [],
+        data: %{
+          name: "George Washington",
+        },
+        valid?: true
+      }
+
+  """
   def cast_all({data, types}, params) do
     fields = Map.keys(types)
 
