@@ -37,7 +37,7 @@ defmodule Instructor.Adapters.Llamacpp do
 
     json_schema = JSONSchema.from_ecto_schema(response_model)
     grammar = GBNF.from_json_schema(json_schema)
-    prompt = apply_chat_template(:mistral_instruct, messages)
+    prompt = apply_chat_template(chat_template(), messages)
     stream = Keyword.get(params, :stream, false)
 
     if stream do
@@ -127,9 +127,6 @@ defmodule Instructor.Adapters.Llamacpp do
     }
   end
 
-  #
-  # Note this is for the mistal-7b-instruct models. TODO: Configurable chat templates? 
-  #
   defp apply_chat_template(:mistral_instruct, messages) do
     prompt =
       messages
@@ -149,5 +146,13 @@ defmodule Instructor.Adapters.Llamacpp do
       end)
 
     "<s>#{prompt}"
+  end
+
+  defp chat_template() do
+    Keyword.get(config(), :chat_template, :mistral_instruct)
+  end
+
+  defp config() do
+    Application.get_env(:instructor, :llamacpp, chat_template: :mistral_instruct)
   end
 end

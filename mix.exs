@@ -26,6 +26,7 @@ defmodule Instructor.MixProject do
         extras: [
           "pages/philosophy.md",
           "pages/introduction-to-instructor.livemd",
+          "pages/llama-cpp.livemd",
           "pages/cookbook/text-classification.livemd",
           "pages/cookbook/extract-action-items-from-meeting-transcripts.livemd",
           "pages/cookbook/text-to-dataframes.livemd"
