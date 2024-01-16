@@ -5,8 +5,8 @@
 ```elixir
 Mix.install(
   [
-    # {:instructor, ">= 0.0.0"},
-    {:instructor, path: "/Users/thomas/code/instructor_ex"},
+    {:instructor, ">= 0.0.0"},
+    # {:instructor, path: "/Users/thomas/code/instructor_ex"},
     {:kino, "~> 0.12.2"}
   ],
   config: [
@@ -100,8 +100,8 @@ Instructor.chat_completion(
    last_name: "Biden",
    offices_held: [
      %Politician.Office{office: :president, from_date: ~D[2021-01-20], to_date: nil},
-     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: ~D[2017-01-20]},
-     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: ~D[2009-01-15]}
+     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: nil},
+     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: nil}
    ]
  }}
 ```
@@ -201,15 +201,16 @@ Instructor.chat_completion(
 
 ```
 
-11:01:04.219 [debug] Retrying LLM call for NumberSeries:
+08:17:33.563 [debug] Retrying LLM call for NumberSeries:
 
- "series - The sum of the series must be even\nseries - should have at least 10 item(s)"
+ "series - should have at least 10 item(s)"
+
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, %NumberSeries{series: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]}}
+{:ok, %NumberSeries{series: [2, 5, 8, 12, 15, 20, 25, 30, 35, 40]}}
 ```
 
 Here we demonstrated using regular Lixar code to validate the outputs of an LLM, but we don't have to stop there. We can actually use the LLM to validate the outputs of the LLM.
@@ -239,7 +240,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, QuestionAnswer, <<70, 79, 82, 49, 0, 0, 16, ...>>, {:validate_changeset, 1}}
+{:module, QuestionAnswer, <<70, 79, 82, 49, 0, 0, 17, ...>>, {:validate_changeset, 1}}
 ```
 
 ```elixir
@@ -316,7 +317,7 @@ presidents_stream
     %Politician.Office{
       office: :president,
       from_date: ~D[1789-04-30],
-      to_date: ~D[1797-03-04]
+      to_date: nil
     }
   ]
 }
@@ -325,14 +326,9 @@ presidents_stream
   last_name: "Adams",
   offices_held: [
     %Politician.Office{
-      office: :vice_president,
-      from_date: ~D[1789-04-30],
-      to_date: ~D[1797-03-04]
-    },
-    %Politician.Office{
       office: :president,
       from_date: ~D[1797-03-04],
-      to_date: ~D[1801-03-04]
+      to_date: nil
     }
   ]
 }
@@ -341,14 +337,9 @@ presidents_stream
   last_name: "Jefferson",
   offices_held: [
     %Politician.Office{
-      office: :vice_president,
-      from_date: ~D[1797-03-04],
-      to_date: ~D[1801-03-04]
-    },
-    %Politician.Office{
       office: :president,
       from_date: ~D[1801-03-04],
-      to_date: ~D[1809-03-04]
+      to_date: nil
     }
   ]
 }
@@ -357,14 +348,9 @@ presidents_stream
   last_name: "Madison",
   offices_held: [
     %Politician.Office{
-      office: :vice_president,
-      from_date: ~D[1801-03-04],
-      to_date: ~D[1809-03-04]
-    },
-    %Politician.Office{
       office: :president,
       from_date: ~D[1809-03-04],
-      to_date: ~D[1817-03-04]
+      to_date: nil
     }
   ]
 }
@@ -373,14 +359,9 @@ presidents_stream
   last_name: "Monroe",
   offices_held: [
     %Politician.Office{
-      office: :vice_president,
-      from_date: ~D[1809-03-04],
-      to_date: ~D[1817-03-04]
-    },
-    %Politician.Office{
       office: :president,
       from_date: ~D[1817-03-04],
-      to_date: ~D[1825-03-04]
+      to_date: nil
     }
   ]
 }
@@ -429,7 +410,7 @@ end)
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: nil, from_date: nil, to_date: nil}]}
-[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: nil, to_date: nil}]}
+[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: nil, from_date: ~D[1789-04-30], to_date: nil}]}
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: nil}]}
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: ~D[1797-03-04]}]}
 [Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: ~D[1797-03-04]}]}
@@ -527,4 +508,4 @@ Instructor.chat_completion(
 
 And just like that, you can extend Instructor to get the LLM to return whatever you want.
 
-<!-- livebook:{"offset":17225,"stamp":{"token":"XCP.cMh-BETtuUB6vlE5dTYOGGUpGCuWmylcyIrzNBoLMeLhDwUpmnOWKvrMMu0_SzDHdGeLNfX-IYPygXqsPx8FIzGdlr6hDiuMj71MQZKdMQO3QgYDlwnbgps","version":2}} -->
+<!-- livebook:{"offset":16609,"stamp":{"token":"XCP.w5xhPTU-nkRAOY5Fbu6aXJ88zB51Tvezlhc2np0ZW64hIc_MkIX3pByyOvvPf-2k71qlwpAGhsIQsYDu8SDRWT42l9Z50sApTJXL6Sjbl8hmsALSNBenVbM","version":2}} -->

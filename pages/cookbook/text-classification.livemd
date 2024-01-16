@@ -29,45 +29,65 @@ Hell, you can even use instructor to help generate the training set to train you
 
 Spam detection is a classic example of binary text classification. It's as simple as returning a true / false of whether an example is in the class. This is pretty trivial to implement in instructor.
 
-```elixir
-defmodule SpamClassification do
+````elixir
+defmodule SpamPrediction do
   use Ecto.Schema
+  use Instructor.Validator
 
   @doc """
-  A classification of whether a provided email is spam or not.
+  ## Field Descriptions:
+  - class: Whether or not the email is spam.
+  - reason: A short, less than 10 word rationalization for the classification.
+  - score: A confidence score between 0.0 and 1.0 for the classification.
   """
   @primary_key false
   embedded_schema do
-    field(:is_spam?, :boolean)
+    field(:class, Ecto.Enum, values: [:spam, :not_spam])
+    field(:reason, :string)
+    field(:score, :float)
+  end
+
+  @impl true
+  def validate_changeset(changeset) do
+    changeset
+    |> Ecto.Changeset.validate_number(:score,
+      greater_than_or_equal_to: 0.0,
+      less_than_or_equal_to: 1.0
+    )
   end
 end
 
 is_spam? = fn text ->
-  {:ok, %{is_spam?: result}} =
-    Instructor.chat_completion(
-      model: "gpt-3.5-turbo",
-      response_model: SpamClassification,
-      messages: [
-        %{
-          role: "user",
-          content: "Classify the following text as spam/not_spam: #{text}"
-        }
-      ]
-    )
+  Instructor.chat_completion(
+    model: "gpt-3.5-turbo",
+    response_model: SpamPrediction,
+    max_retries: 3,
+    messages: [
+      %{
+        role: "user",
+        content: """
+        Your purpose is to classify customer support emails as either spam or not.
+        This is for a clothing retail business.
+        They sell all types of clothing.
 
-  result
+        Classify the following email: 
+        ```
+        #{text}
+        ```
+        """
+      }
+    ]
+  )
 end
 
 is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
-```
+````
 
 <!-- livebook:{"output":true} -->
 
 ```
-true
+{:ok, %SpamPrediction{class: :spam, reason: "Nigerian prince scam", score: 0.95}}
 ```
-
-## Multi-Class Text Classification
 
 We don't have to stop just at a boolean inclusion, we can also easily extend this idea to multiple categories or classes that we can classify the text into. In this example, let's consider classifying support emails. We want to know whether it's a `general_inquiry`, `billing_issue`, or a `technical_issue` perhaps it rightly fits in multiple classes. This can be useful if we want to cc' specialized support agents when intersecting customer issues occur
 
@@ -117,4 +137,4 @@ classify_email.("My account is locked and I can't access my billing info.")
 [:technical_issue, :billing_issue]
 ```
 
-<!-- livebook:{"offset":3715,"stamp":{"token":"XCP.5TEM1YsHThC1nSHs6aMACbc9nSINfaTw-AQHdMj8mhASbpSXy0vET32EAGwwrjDer0tOheln-yInCPR3IuLXR8U8Ytq84j9lNIhF9sQAafqSS532tBie-4E","version":2}} -->
+<!-- livebook:{"offset":4373,"stamp":{"token":"XCP.g6FRPY54N5BwO-G891VXVrRqBFIjoUHJSOgoE0CGbZQns-hu4R9-nxW9LCvld0BB2vq4hsw2HKoWtjYcun-8pmPzQ687uaSi8F1D3DrCB5Kf0aBAjqQQyqc","version":2}} -->

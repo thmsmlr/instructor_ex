@@ -27,9 +27,9 @@ defmodule SpamPrediction do
 
   @doc """
   ## Field Descriptions:
-  - class: Whether or not the email is spam
-  - reason: A short, less than 10 word rationalization for the classification
-  - score: A confidence score between 0.0 and 1.0 for the classification
+  - class: Whether or not the email is spam.
+  - reason: A short, less than 10 word rationalization for the classification.
+  - score: A confidence score between 0.0 and 1.0 for the classification.
   """
   @primary_key false
   embedded_schema do
@@ -57,11 +57,14 @@ is_spam? = fn text ->
       %{
         role: "user",
         content: """
-        You purpose is to classify customer support emails as either spam or not.
-        This is for a clothing retailer business.
+        Your purpose is to classify customer support emails as either spam or not.
+        This is for a clothing retail business.
         They sell all types of clothing.
 
-        Classify the following email: #{text}
+        Classify the following email: 
+        ```
+        #{text}
+        ```
         """
       }
     ]
