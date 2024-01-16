@@ -28,6 +28,7 @@ defmodule Instructor.MixProject do
           "pages/introduction-to-instructor.livemd",
           "pages/llama-cpp.livemd",
           "pages/cookbook/text-classification.livemd",
+          "pages/cookbook/qa-citations.livemd",
           "pages/cookbook/extract-action-items-from-meeting-transcripts.livemd",
           "pages/cookbook/text-to-dataframes.livemd"
         ],
