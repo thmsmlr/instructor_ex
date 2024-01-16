@@ -34,7 +34,7 @@ defmodule SpamClassification do
   use Ecto.Schema
 
   @doc """
-  A classification of whether or not a provided email is spam or not
+  A classification of whether a provided email is spam or not.
   """
   @primary_key false
   embedded_schema do
@@ -71,7 +71,7 @@ true
 
 We don't have to stop just at a boolean inclusion, we can also easily extend this idea to multiple categories or classes that we can classify the text into. In this example, let's consider classifying support emails. We want to know whether it's a `general_inquiry`, `billing_issue`, or a `technical_issue` perhaps it rightly fits in multiple classes. This can be useful if we want to cc' specialized support agents when intersecting customer issues occur
 
-We can leverage `Ecto.Enum` to define a schema that restricts the LLM output to be a list one of those values. We can also provide a `@doc` description to help guide the LLM with the semantic understanding of what these classifications ought to represent.
+We can leverage `Ecto.Enum` to define a schema that restricts the LLM output to be a list of those values. We can also provide a `@doc` description to help guide the LLM with the semantic understanding of what these classifications ought to represent.
 
 ```elixir
 defmodule EmailClassifications do
