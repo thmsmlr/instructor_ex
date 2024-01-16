@@ -26,11 +26,11 @@ defmodule Instructor.MixProject do
         extras: [
           "pages/quickstart.livemd",
           "pages/philosophy.md",
-          "pages/llama-cpp.livemd",
           "pages/cookbook/text-classification.livemd",
           "pages/cookbook/qa-citations.livemd",
           "pages/cookbook/extract-action-items-from-meeting-transcripts.livemd",
-          "pages/cookbook/text-to-dataframes.livemd"
+          "pages/cookbook/text-to-dataframes.livemd",
+          "pages/cookbook/llama-cpp.livemd"
         ],
         groups_for_extras: [
           Cookbook: ~r"pages/cookbook/.*\.(md|livemd)"
