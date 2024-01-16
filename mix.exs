@@ -24,8 +24,8 @@ defmodule Instructor.MixProject do
       docs: [
         main: "Instructor",
         extras: [
+          "pages/quickstart.livemd",
           "pages/philosophy.md",
-          "pages/introduction-to-instructor.livemd",
           "pages/llama-cpp.livemd",
           "pages/cookbook/text-classification.livemd",
           "pages/cookbook/qa-citations.livemd",
