@@ -5,9 +5,7 @@
 ```elixir
 Mix.install(
   [
-    # {:instructor, ">= 0.0.0"},
-    {:instructor, path: "/Users/thomas/code/instructor_ex"},
-    {:kino, "~> 0.12.2"}
+    {:instructor, ">= 0.0.4"},
   ],
   config: [
     instructor: [
@@ -54,7 +52,7 @@ defmodule Politician do
 
     embeds_many :offices_held, Office, primary_key: false do
       field(:office, Ecto.Enum,
-        values: [:president, :vice_president, :govenor, :congress, :senate]
+        values: [:president, :vice_president, :governor, :congress, :senate]
       )
 
       field(:from_date, :date)
