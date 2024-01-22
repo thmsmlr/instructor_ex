@@ -5,8 +5,7 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, ">= 0.0.4"},
-    {:kino, "~> 0.12.2"}
+    {:instructor, ">= 0.0.4"}
   ],
   config: [
     instructor: [
@@ -53,7 +52,7 @@ defmodule Politician do
 
     embeds_many :offices_held, Office, primary_key: false do
       field(:office, Ecto.Enum,
-        values: [:president, :vice_president, :govenor, :congress, :senate]
+        values: [:president, :vice_president, :governor, :congress, :senate]
       )
 
       field(:from_date, :date)
@@ -211,7 +210,6 @@ Instructor.chat_completion(
 09:26:04.894 [debug] Retrying LLM call for NumberSeries:
 
  "series - should have at least 10 item(s)"
-
 ```
 
 <!-- livebook:{"output":true} -->
@@ -515,4 +513,4 @@ Instructor.chat_completion(
 
 And just like that, you can extend Instructor to get the LLM to return whatever you want.
 
-<!-- livebook:{"offset":16837,"stamp":{"token":"XCP.Ua0KP4QNYEJZKM924cWPwWgufMKN0eRO_SudcwL5C6-LueO0Y3hYtcr-K3UZGvrw9BYHgdYqzKuHNbmASDDewyZNdhOK0xP0CBegA1zA5CKZgAvQQkpvEws","version":2}} -->
+<!-- livebook:{"offset":16811,"stamp":{"token":"XCP.ndGOxbYug96uItmWdLzMC2APz6UJJDU1wCHZtX66FsgRULoYsg4GJKvf04S900T7kZyIjjdTFWaacgcALOLldAyGOQhevUK3tUOZigXqxUq29f0GA0fLBSg","version":2}} -->

@@ -143,6 +143,7 @@ defmodule Instructor.Adapters.Llamacpp do
       messages
       |> Enum.map_join("\n\n", fn
         %{role: role, content: content} -> "<|#{role}|>\n#{content} </s>"
+        %{content: content} -> "<|user|>\n#{content} </s>"
       end)
 
     "<s>#{prompt}"
