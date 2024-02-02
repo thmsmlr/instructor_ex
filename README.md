@@ -98,6 +98,13 @@ To use a local LLM, you can install and run [llama.cpp server](https://github.co
 config :instructor, adapter: Instructor.Adapters.Llamacpp
 ```
 
+Optionally, you can also customize the your llama.cpp calls (with defaults shown):
+```elixir
+config :instructor, :llamacpp,
+    chat_template: :mistral_instruct,
+    api_url: "http://localhost:8080/completion"
+````
+
 <!-- Docs -->
 
 ## Installation
