@@ -23,14 +23,12 @@ defmodule Instructor.ErrorFormatter do
 
   defp format_errors(%{} = errors, path) do
     errors
-    |> Enum.map(fn {key, value} -> format_errors(value, path ++ [key]) end)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", fn {key, value} -> format_errors(value, path ++ [key]) end)
   end
 
   defp format_errors([%{} = map | tail], path) do
     Enum.with_index([map | tail])
-    |> Enum.map(fn {element, index} -> format_errors(element, path ++ [index]) end)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", fn {element, index} -> format_errors(element, path ++ [index]) end)
   end
 
   defp format_errors([head | tail], path) do
