@@ -1,0 +1,55 @@
+# Local Instructor w/ Ollama
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: "/Users/louislarpin/Workspace/instructor_ex"},
+    {:kino_shell, "~> 0.1.2"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI
+    ],
+    openai: [
+      api_key: "ollama",
+      api_url: "http://localhost:11434",
+      http_options: [recv_timeout: 30_000]
+    ]
+  ]
+)
+```
+
+## Setup Ollama
+
+TODO
+
+<!-- livebook:{"attrs":"eyJpbl9iYWNrZ3JvdW5kIjpmYWxzZSwicmVzdGFydCI6ZmFsc2UsInNvdXJjZSI6Im9sbGFtYSBwdWxsIG1pc3RyYWw6N2ItaW5zdHJ1Y3QtcTZfSyJ9","chunks":null,"kind":"Elixir.KinoShell.ShellScriptCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{_, 0} =
+  System.cmd("bash", ["-lc", "ollama pull mistral:7b-instruct-q6_K"], into: IO.stream())
+
+:ok
+```
+
+```elixir
+defmodule President do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+Instructor.chat_completion(
+  mode: :json,
+  model: "mistral:7b-instruct-q6_K",
+  response_model: President,
+  messages: [
+    %{role: "user", content: "Who was the first president of the United States?"}
+  ]
+)
+```

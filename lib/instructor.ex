@@ -243,7 +243,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     model =
       if is_ecto_schema(response_model) do
@@ -314,7 +314,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     adapter().chat_completion(params)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
@@ -362,7 +362,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     adapter().chat_completion(params)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
@@ -392,7 +392,7 @@ defmodule Instructor do
     validation_context = Keyword.get(params, :validation_context, %{})
     max_retries = Keyword.get(params, :max_retries)
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, response_model, params)
+    params = params_for_mode(mode, response_model, params)
 
     model =
       if is_ecto_schema(response_model) do
@@ -453,6 +453,12 @@ defmodule Instructor do
     end
   end
 
+  defp parse_response_for_mode(:json, %{
+         choices: [%{"message" => %{"content" => content}}]
+       }) do
+    Jason.decode(content)
+  end
+
   defp parse_response_for_mode(:tools, %{
          choices: [
            %{
@@ -464,6 +470,13 @@ defmodule Instructor do
        }) do
     Jason.decode(args)
   end
+
+  defp parse_stream_chunk_for_mode(:json, %{
+         "choices" => [
+          %{"delta" => %{"content" => chunk}}
+         ]
+       }),
+       do: chunk
 
   defp parse_stream_chunk_for_mode(:tools, %{
          "choices" => [
@@ -499,40 +512,51 @@ defmodule Instructor do
     ]
   end
 
-  defp params_for_tool(:tools, response_model, params) do
+  defp params_for_mode(mode, response_model, params) do
     json_schema = JSONSchema.from_ecto_schema(response_model)
 
-    params =
-      params
-      |> Keyword.update(:messages, [], fn messages ->
-        sys_message = %{
-          role: "system",
-          content: """
-          As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
-
-          #{json_schema}
-          """
-        }
-
-        [sys_message | messages]
-      end)
-      |> Keyword.put(:tools, [
-        %{
-          type: "function",
-          function: %{
-            "description" =>
-              "Correctly extracted `Schema` with all the required parameters with correct types",
-            "name" => "Schema",
-            "parameters" => json_schema |> Jason.decode!()
-          }
-        }
-      ])
-      |> Keyword.put(:tool_choice, %{
-        type: "function",
-        function: %{name: "Schema"}
-      })
-
     params
+    |> apply_system_message(json_schema)
+    |> apply_mode_params(mode, json_schema)
+  end
+
+  defp apply_system_message(params, json_schema) do
+    Keyword.update(params, :messages, [], fn messages ->
+      sys_message = %{
+        role: "system",
+        content: """
+        As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
+
+        #{json_schema}
+        """
+      }
+
+      [sys_message | messages]
+    end)
+  end
+
+  defp apply_mode_params(params, :json, _json_schema) do
+    Keyword.put(params, :response_format, %{
+      type: "json_object"
+    })
+  end
+
+  defp apply_mode_params(params, :tools, json_schema) do
+    Keyword.put(params, :tools, [
+      %{
+        type: "function",
+        function: %{
+          "description" =>
+            "Correctly extracted `Schema` with all the required parameters with correct types",
+          "name" => "Schema",
+          "parameters" => json_schema |> Jason.decode!()
+        }
+      }
+    ])
+    |> Keyword.put(:tool_choice, %{
+      type: "function",
+      function: %{name: "Schema"}
+    })
   end
 
   defp call_validate(response_model, changeset, context) do
