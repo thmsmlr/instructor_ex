@@ -242,8 +242,9 @@ defmodule Instructor do
 
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
+    # default parse mode is :tools
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     model =
       if is_ecto_schema(response_model) do
@@ -314,7 +315,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     adapter().chat_completion(params)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
@@ -362,7 +363,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     adapter().chat_completion(params)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
@@ -392,7 +393,7 @@ defmodule Instructor do
     validation_context = Keyword.get(params, :validation_context, %{})
     max_retries = Keyword.get(params, :max_retries)
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, response_model, params)
+    params = params_for_mode(mode, response_model, params)
 
     model =
       if is_ecto_schema(response_model) do
@@ -465,6 +466,18 @@ defmodule Instructor do
     Jason.decode(args)
   end
 
+  defp parse_response_for_mode(:json, %{
+         "choices" => [
+           %{
+             "message" => %{
+               "content" => content
+             }
+           }
+         ]
+       }) do
+    Jason.decode(content)
+  end
+
   defp parse_stream_chunk_for_mode(:tools, %{
          "choices" => [
            %{"delta" => %{"tool_calls" => [%{"function" => %{"arguments" => chunk}}]}}
@@ -499,7 +512,39 @@ defmodule Instructor do
     ]
   end
 
-  defp params_for_tool(:tools, response_model, params) do
+  defp params_for_mode(:json, response_model, params) do
+    json_schema = JSONSchema.from_ecto_schema(response_model)
+    decoded_json_schema = Jason.decode!(json_schema)
+
+    # Check for nested models
+    nested_msg =
+      if decoded_json_schema["$defs"] do
+        "\nHere are some more definitions to adhere too:\n #{Jason.encode!(decoded_json_schema["$defs"])}"
+      end
+
+    params =
+      params
+      |> Keyword.update(:messages, [], fn messages ->
+        sys_message = %{
+          role: "system",
+          content: """
+          As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
+
+          #{json_schema} \n\n #{nested_msg}
+          """
+        }
+
+        [sys_message | messages]
+      end)
+      |> Keyword.put(
+        :response_format,
+        %{type: "json_object"}
+      )
+
+    params
+  end
+
+  defp params_for_mode(:tools, response_model, params) do
     json_schema = JSONSchema.from_ecto_schema(response_model)
 
     params =
