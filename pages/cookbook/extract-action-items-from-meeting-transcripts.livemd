@@ -5,8 +5,7 @@
 ```elixir
 Mix.install(
   [
-    # {:instructor, "~> 0.0.2"}
-    {:instructor, path: "/Users/thomas/code/instructor_ex"},
+    {:instructor, "~> 0.0.4"},
     {:kino, "~> 0.12.0"}
   ],
   config: [
@@ -129,61 +128,61 @@ end
  %MeetingNotes{
    tickets: [
      %MeetingNotes.Ticket{
-       id: "T1",
-       name: "Improving authentication system",
-       description: "Work on improving the authentication system",
+       id: "1",
+       name: "Authentication System Improvement",
+       description: "Improve the authentication system",
        priority: :high,
        assignees: ["Bob"],
        subtasks: [
-         %MeetingNotes.Ticket.SubTasks{id: "T1.1", name: "Front-end revamp"},
-         %MeetingNotes.Ticket.SubTasks{id: "T1.2", name: "Back-end optimization"}
+         %MeetingNotes.Ticket.SubTasks{id: "2", name: "Front-end Revamp"},
+         %MeetingNotes.Ticket.SubTasks{id: "3", name: "Back-end Optimization"}
        ],
        dependencies: []
      },
      %MeetingNotes.Ticket{
-       id: "T2",
-       name: "Integrating authentication system with billing system",
-       description: "Integrate the improved authentication system with the new billing system",
-       priority: :medium,
-       assignees: ["Bob"],
-       subtasks: [],
-       dependencies: ["T1.2"]
-     },
-     %MeetingNotes.Ticket{
-       id: "T3",
-       name: "Update user documentation",
-       description: "Update user documentation to reflect the changes",
-       priority: :low,
-       assignees: ["Carol"],
-       subtasks: [],
-       dependencies: ["T1.1"]
-     },
-     %MeetingNotes.Ticket{
-       id: "T4",
-       name: "Handle front-end part of authentication system",
-       description: "Help with the front-end part of the authentication system",
-       priority: :medium,
+       id: "2",
+       name: "Front-end Revamp",
+       description: "Revamp the front-end of the authentication system",
+       priority: :high,
        assignees: ["Carol"],
        subtasks: [],
        dependencies: []
      },
      %MeetingNotes.Ticket{
-       id: "T5",
-       name: "Handle back-end optimization of authentication system",
-       description: "Handle the back-end optimization of the authentication system",
+       id: "3",
+       name: "Back-end Optimization",
+       description: "Optimize the back-end of the authentication system",
        priority: :high,
        assignees: ["Bob"],
        subtasks: [],
        dependencies: []
      },
      %MeetingNotes.Ticket{
-       id: "T6",
-       name: "Handle billing system",
-       description: "Handle the new billing system",
+       id: "4",
+       name: "Integration with Billing System",
+       description: "Integrate the improved authentication system with the new billing system",
        priority: :medium,
        assignees: ["Bob"],
        subtasks: [],
-       dependencies: ["T5"]
+       dependencies: ["3"]
+     },
+     %MeetingNotes.Ticket{
+       id: "5",
+       name: "Billing System",
+       description: "Implement the new billing system",
+       priority: :medium,
+       assignees: ["Bob"],
+       subtasks: [],
+       dependencies: []
+     },
+     %MeetingNotes.Ticket{
+       id: "6",
+       name: "Update User Documentation",
+       description: "Update the user documentation to reflect the changes",
+       priority: :low,
+       assignees: ["Carol"],
+       subtasks: [],
+       dependencies: ["2"]
      }
    ]
  }}
@@ -255,65 +254,64 @@ generate_tickets_diagram.(tickets)
 
 ```mermaid
   erDiagram
-      "Improving authentication system" {
+      "Authentication System Improvement" {
     priority high
     assignees Bob
   }
 
-  "Improving authentication system" ||--o| "Front-end revamp" : "Has Subtask"
+  "Authentication System Improvement" ||--o| "Front-end Revamp" : "Has Subtask"
 
-"Improving authentication system" ||--o| "Back-end optimization" : "Has Subtask"
+"Authentication System Improvement" ||--o| "Back-end Optimization" : "Has Subtask"
 
   
 
-  "Integrating authentication system with billing system" {
+  "Front-end Revamp" {
+    priority high
+    assignees Carol
+  }
+
+  
+  
+
+  "Back-end Optimization" {
+    priority high
+    assignees Bob
+  }
+
+  
+  
+
+  "Integration with Billing System" {
     priority medium
     assignees Bob
   }
 
   
-  "Integrating authentication system with billing system" ||--o| "Back-end optimization" : "Depends on"
+  "Integration with Billing System" ||--o| "Back-end Optimization" : "Depends on"
 
 
-  "Update user documentation" {
+  "Billing System" {
+    priority medium
+    assignees Bob
+  }
+
+  
+  
+
+  "Update User Documentation" {
     priority low
     assignees Carol
   }
 
   
-  "Update user documentation" ||--o| "Front-end revamp" : "Depends on"
+  "Update User Documentation" ||--o| "Front-end Revamp" : "Depends on"
 
 
-  "Handle front-end part of authentication system" {
-    priority medium
-    assignees Carol
-  }
+      "Front-end Revamp"
 
-  
-  
-
-  "Handle back-end optimization of authentication system" {
-    priority high
-    assignees Bob
-  }
-
-  
-  
-
-  "Handle billing system" {
-    priority medium
-    assignees Bob
-  }
-
-  
-  "Handle billing system" ||--o| "Handle back-end optimization of authentication system" : "Depends on"
-
-
-      "Front-end revamp"
-
-  "Back-end optimization"
+  "Back-end Optimization"
 
 
 ```
 
-<!-- livebook:{"offset":9344,"stamp":{"token":"XCP.yoxkI3zUVgtejiyU2srLCvVLT75QXTgesEQjLStJbAnsnGXKP_GDcj9sBvH0HWHPyCeWv5ED8A9E9U3pTmkv52a7CDbpnRt67H0VohcnXKo9I9ftFkEfoC8","version":2}} -->
+<!-- livebook:{"offset":8936,"stamp":{"token":"XCP.uQ3Vg5d5SJ0CXs8oo1DnB8osSACGyTdPOciHqlOXH9UqjPvv6nYGLAuv3vcpcEYe6NNKRUxJmf9hwowNr_IPB9MoyeTL7tb4NGorGz0GJkAPNMXYOG65fOU","version":2}} -->

@@ -1,11 +1,11 @@
 <!-- livebook:{"persist_outputs":true} -->
 
-# Introduction to Instructor
+# Quickstart
 
 ```elixir
 Mix.install(
   [
-    {:instructor, ">= 0.0.4"},
+    {:instructor, ">= 0.0.4"}
   ],
   config: [
     instructor: [
@@ -98,8 +98,8 @@ Instructor.chat_completion(
    last_name: "Biden",
    offices_held: [
      %Politician.Office{office: :president, from_date: ~D[2021-01-20], to_date: nil},
-     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: ~D[2017-01-20]},
-     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: ~D[2009-01-15]}
+     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: nil},
+     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: nil}
    ]
  }}
 ```
@@ -199,15 +199,23 @@ Instructor.chat_completion(
 
 ```
 
-11:01:04.219 [debug] Retrying LLM call for NumberSeries:
+09:26:02.166 [debug] Retrying LLM call for NumberSeries:
 
  "series - The sum of the series must be even\nseries - should have at least 10 item(s)"
+
+09:26:03.500 [debug] Retrying LLM call for NumberSeries:
+
+ "series - The sum of the series must be even"
+
+09:26:04.894 [debug] Retrying LLM call for NumberSeries:
+
+ "series - should have at least 10 item(s)"
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, %NumberSeries{series: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]}}
+{:ok, %NumberSeries{series: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}}
 ```
 
 Here we demonstrated using regular Lixar code to validate the outputs of an LLM, but we don't have to stop there. We can actually use the LLM to validate the outputs of the LLM.
@@ -323,11 +331,6 @@ presidents_stream
   last_name: "Adams",
   offices_held: [
     %Politician.Office{
-      office: :vice_president,
-      from_date: ~D[1789-04-30],
-      to_date: ~D[1797-03-04]
-    },
-    %Politician.Office{
       office: :president,
       from_date: ~D[1797-03-04],
       to_date: ~D[1801-03-04]
@@ -338,11 +341,6 @@ presidents_stream
   first_name: "Thomas",
   last_name: "Jefferson",
   offices_held: [
-    %Politician.Office{
-      office: :vice_president,
-      from_date: ~D[1797-03-04],
-      to_date: ~D[1801-03-04]
-    },
     %Politician.Office{
       office: :president,
       from_date: ~D[1801-03-04],
@@ -355,11 +353,6 @@ presidents_stream
   last_name: "Madison",
   offices_held: [
     %Politician.Office{
-      office: :vice_president,
-      from_date: ~D[1801-03-04],
-      to_date: ~D[1809-03-04]
-    },
-    %Politician.Office{
       office: :president,
       from_date: ~D[1809-03-04],
       to_date: ~D[1817-03-04]
@@ -370,11 +363,6 @@ presidents_stream
   first_name: "James",
   last_name: "Monroe",
   offices_held: [
-    %Politician.Office{
-      office: :vice_president,
-      from_date: ~D[1809-03-04],
-      to_date: ~D[1817-03-04]
-    },
     %Politician.Office{
       office: :president,
       from_date: ~D[1817-03-04],
@@ -525,4 +513,4 @@ Instructor.chat_completion(
 
 And just like that, you can extend Instructor to get the LLM to return whatever you want.
 
-<!-- livebook:{"offset":17225,"stamp":{"token":"XCP.cMh-BETtuUB6vlE5dTYOGGUpGCuWmylcyIrzNBoLMeLhDwUpmnOWKvrMMu0_SzDHdGeLNfX-IYPygXqsPx8FIzGdlr6hDiuMj71MQZKdMQO3QgYDlwnbgps","version":2}} -->
+<!-- livebook:{"offset":16811,"stamp":{"token":"XCP.ndGOxbYug96uItmWdLzMC2APz6UJJDU1wCHZtX66FsgRULoYsg4GJKvf04S900T7kZyIjjdTFWaacgcALOLldAyGOQhevUK3tUOZigXqxUq29f0GA0fLBSg","version":2}} -->

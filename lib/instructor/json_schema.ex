@@ -107,7 +107,7 @@ defmodule Instructor.JSONSchema do
       |> Enum.into(%{})
 
     properties = Map.merge(properties, associations)
-    required = Map.keys(properties)
+    required = Map.keys(properties) |> Enum.sort()
     title = title_for(ecto_schema)
 
     associated_schemas =
