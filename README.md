@@ -85,6 +85,13 @@ is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 
 Check out our [Quickstart Guide](https://hexdocs.pm/instructor/quickstart.html) for more code snippets that you can run locally (in Livebook). Or, to get a better idea of the thinking behind Instructor, read more about our [Philosophy & Motivations](https://hexdocs.pm/instructor/philosophy.html).
 
+Optionally, you can also customize the your llama.cpp calls (with defaults shown):
+```elixir
+config :instructor, :llamacpp,
+    chat_template: :mistral_instruct,
+    api_url: "http://localhost:8080/completion"
+````
+
 <!-- Docs -->
 
 ## Installation

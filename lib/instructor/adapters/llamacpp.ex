@@ -50,10 +50,12 @@ defmodule Instructor.Adapters.Llamacpp do
   defp do_streaming_chat_completion(prompt, grammar) do
     pid = self()
 
+    url = url()
+
     Stream.resource(
       fn ->
         Task.async(fn ->
-          Req.post!("http://localhost:8080/completion",
+          Req.post!(url(),
             json: %{
               grammar: grammar,
               prompt: prompt,
@@ -96,7 +98,7 @@ defmodule Instructor.Adapters.Llamacpp do
 
   defp do_chat_completion(prompt, grammar) do
     response =
-      Req.post!("http://localhost:8080/completion",
+      Req.post!(url(),
         json: %{
           grammar: grammar,
           prompt: prompt
@@ -149,11 +151,22 @@ defmodule Instructor.Adapters.Llamacpp do
     "<s>#{prompt}"
   end
 
+  defp url() do
+    Keyword.get(config(), :url, "http://localhost:8080/completion")
+  end
+
   defp chat_template() do
     Keyword.get(config(), :chat_template, :mistral_instruct)
   end
 
   defp config() do
-    Application.get_env(:instructor, :llamacpp, chat_template: :mistral_instruct)
+    base_config = Application.get_env(:instructor, :llamacpp, [])
+
+    default_config = [
+      chat_template: :mistral_instruct,
+      api_url: "http://localhost:8080/completion"
+    ]
+
+    Keyword.merge(default_config, base_config)
   end
 end
