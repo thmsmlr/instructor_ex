@@ -521,18 +521,37 @@ defmodule Instructor do
   end
 
   defp apply_system_message(params, json_schema) do
+    decoded_json_schema = Jason.decode!(json_schema)
+
+    additional_definitions =
+      decoded_json_schema["$defs"]
+      |> maybe_encode_additional_definitions()
+
     Keyword.update(params, :messages, [], fn messages ->
       sys_message = %{
         role: "system",
-        content: """
-        As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
-
-        #{json_schema}
-        """
+        content: system_message_content(json_schema, additional_definitions)
       }
 
       [sys_message | messages]
     end)
+  end
+
+  defp maybe_encode_additional_definitions(nil), do: nil
+  defp maybe_encode_additional_definitions(defs) do
+    "\nHere are some more definitions to adhere too:\n" <> Jason.encode!(defs)
+  end
+
+  defp system_message_content(json_schema, additional_definitions) do
+    base_message = """
+    As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
+    #{json_schema}
+    """
+
+    case additional_definitions do
+      nil -> base_message
+      _ -> base_message <> "\n\n" <> additional_definitions
+    end
   end
 
   defp apply_mode_params(params, :json, _json_schema) do
