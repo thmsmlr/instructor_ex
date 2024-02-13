@@ -5,8 +5,7 @@
 ```elixir
 Mix.install(
   [
-    # {:instructor, "~> 0.0.2"}
-    {:instructor, path: "/Users/thomas/code/instructor_ex"},
+    {:instructor, "~> 0.0.4"},
     {:explorer, "~> 0.7.2"},
     {:kino, "~> 0.12.0"},
     {:kino_explorer, "~> 0.1.13"}
@@ -137,4 +136,4 @@ Kino.Layout.tabs(
 )
 ```
 
-<!-- livebook:{"offset":3999,"stamp":{"token":"XCP.eOIgnqRdBf7UJbu8VBayXk_IAWAeXsVWDLci5cYgC05okdcozpMo6Ws9qnDJgn7gy_mHCuWF4_47W5ZS8-aNkKlULC1M2IO_ZU-D9Dr6c8He4Np36gRxwNc","version":2}} -->
+<!-- livebook:{"offset":3937,"stamp":{"token":"XCP.XhYvx2wzcyQz7wcBfHdIUOr8CnbPLd1irY9_ePvQeVknS7O_zuKd3Bn64RfztsJ8YVWxqLWhU8swQTMfE1paJKK53UApZ9tPfFLiyzq3t1AK4MhWVeIon9Q","version":2}} -->

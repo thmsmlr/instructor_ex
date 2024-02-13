@@ -5,8 +5,7 @@
 ```elixir
 Mix.install(
   [
-    # {:instructor, "~> 0.0.2"}
-    {:instructor, path: "/Users/thomas/code/instructor_ex"}
+    {:instructor, "~> 0.0.4"}
   ],
   config: [
     instructor: [
@@ -84,7 +83,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, QuestionAnswer, <<70, 79, 82, 49, 0, 0, 23, ...>>, {:validate_answer, 3}}
+{:module, QuestionAnswer, <<70, 79, 82, 49, 0, 0, 24, ...>>, {:validate_answer, 3}}
 ```
 
 Notice something interesting about this code. While we provide a validation for the change set, Instructor by default will also cast all of the embedded and associated schemas. We can override that validation of associated schemas by using the `Ecto.Changeset.cast_embed/3` function with the `with:` option.
@@ -153,11 +152,11 @@ answer_with_citations.(question, context)
    question: "What companies and side projects has the author worked on?",
    answer: [
      %QuestionAnswer.Citation{
-       statement: "The author has worked at Mortar Data (acquired by DataDog) and Stitch Fix.",
+       statement: "I have worked at Mortar Data (acquired by DataDog) and Stitch Fix.",
        quote: "Over that time I have worked at Mortar Data (acquired by DataDog), and Stitch Fix building data platforms and doing MLOps."
      },
      %QuestionAnswer.Citation{
-       statement: "The author has worked on side projects like billclintonswag.com and 12ft.io.",
+       statement: "I have built projects like billclintonswag.com and 12ft.io.",
        quote: "On the side, I have built projects like billclintonswag.com and 12ft.io which cumulatively have reached over 50M+ people directly."
      }
    ]
@@ -310,4 +309,4 @@ changeset = Instructor.cast_all(%LLMQuestionAnswer{}, params)
 >
 ```
 
-<!-- livebook:{"offset":10147,"stamp":{"token":"XCP.JI6HEUID3iBF1SRBmL0SrXPKpyb3dP-s9gmuvPIWr0qxR3ORPBCUBWkSWB5jbOM8lV4fzP87yadpye1JrYrkL3KYBkuVrerZ7EU_wkSkLZpoHIAe_XBJB6I","version":2}} -->
+<!-- livebook:{"offset":10060,"stamp":{"token":"XCP.FYaXPmnw7ZAexPoEhYU1V0K3VV_Tyj7s5YwTPKvEPI-Vmmb7P92KT4S5BsVBGW2nCUS7hxRBBRl27A_zZRrVOfnOeZVj51d_TcJvWrbieSyfHgSNA0nLZgo","version":2}} -->

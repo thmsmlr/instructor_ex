@@ -13,12 +13,19 @@ _Structured, Ecto outputs with OpenAI (and OSS LLMs)_
 
 <!-- Docs -->
 
-Instructor.ex is a spiritual port of the great [Instructor Python Library](https://github.com/jxnl/instructor) by [@jxnlco](https://twitter.com/jxnlco), check out his [talk](https://www.youtube.com/watch?v=yj-wSRJwrrc) on youtube.
-This library brings structured prompting to LLMs. Instead of receiving text as output, Instructor will coax the LLM to output valid JSON that maps directly to the provided Ecto schema.
-If the LLM fails to do so, or provides values that do not pass your validations, it will provide you utilities to automatically retry with the LLM to correct errors.
-By default it's designed to be used with the [OpenAI API](https://platform.openai.com/docs/api-reference/chat-completions/create), however it provides an extendable adapter behavior to work with [ggerganov/llama.cpp](https://github.com/ggerganov/llama.cpp) and [Bumblebee (Coming Soon!)](https://github.com/elixir-nx/bumblebee).
+ Structured prompting for LLMs. Instructor is a spiritual port of the great [Instructor Python Library](https://github.com/jxnl/instructor) by [@jxnlco](https://twitter.com/jxnlco), check out his [talk on YouTube](https://www.youtube.com/watch?v=yj-wSRJwrrc).
+ 
+ The Instructor library is useful for coaxing an LLM to return JSON that maps to an Ecto schema that you provide, rather than the default unstructured text output. If you define your own validation logic, Instructor can automatically retry prompts when validation fails (returning natural language error messages to the LLM, to guide it when making corrections).
 
-At its simplest, usage is pretty straightforward,
+Instructor is designed to be used with the [OpenAI API](https://platform.openai.com/docs/api-reference/chat-completions/create) by default, but it also works with [llama.cpp](https://github.com/ggerganov/llama.cpp) and [Bumblebee](https://github.com/elixir-nx/bumblebee) (Coming Soon!) by using an extendable adapter behavior.
+
+At its simplest, usage is pretty straightforward: 
+
+1. Create an ecto schema, with a `@doc` string that explains the schema definition to the LLM. 
+2. Define a `validate_changeset/1` function on the schema, and use the `Instructor.Validator` macro in order for Instructor to know about it.
+2. Make a call to `Instructor.chat_completion/1` with an instruction for the LLM to execute.
+
+You can use the `max_retries` parameter to automatically, iteratively go back and forth with the LLM to try fixing validation errorswhen they occur.
 
 ```elixir
 defmodule SpamPrediction do
@@ -27,9 +34,9 @@ defmodule SpamPrediction do
 
   @doc """
   ## Field Descriptions:
-  - class: Whether or not the email is spam
-  - reason: A short, less than 10 word rationalization for the classification
-  - score: A confidence score between 0.0 and 1.0 for the classification
+  - class: Whether or not the email is spam.
+  - reason: A short, less than 10 word rationalization for the classification.
+  - score: A confidence score between 0.0 and 1.0 for the classification.
   """
   @primary_key false
   embedded_schema do
@@ -57,11 +64,14 @@ is_spam? = fn text ->
       %{
         role: "user",
         content: """
-        You purpose is to classify customer support emails as either spam or not.
-        This is for a clothing retailer business.
+        Your purpose is to classify customer support emails as either spam or not.
+        This is for a clothing retail business.
         They sell all types of clothing.
 
-        Classify the following email: #{text}
+        Classify the following email: 
+        ```
+        #{text}
+        ```
         """
       }
     ]
@@ -73,30 +83,7 @@ is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 # => {:ok, %SpamPrediction{class: :spam, reason: "Nigerian prince email scam", score: 0.98}}
 ```
 
-Simply create an ecto schema, optionally provide a `@doc` to the schema definition which we pass down to the LLM, then make a call to `Instructor.chat_completion/1` with context about the task you'd like the LLM to complete.
-You can also provide a `validate_changeset/1` function via the `use Instructor.Validator` which will provide a set of code level ecto changeset validations. You can use this in conjunction with `max_retries: 3` to automatically, iteratively go back and forth with the LLM up to `n` times with any validation errors so that it has a chance to fix them.
-
-**Curious to learn more? Unsure of how you'd use this? Check out our [Gettings Started Guide](https://hexdocs.pm/instructor/introduction-to-instructor.html)**
-
-* [Tutorial - Basic Usage & Features](https://hexdocs.pm/instructor/introduction-to-instructor.html)
-* [Text Classification](https://hexdocs.pm/instructor/text-classification.html)
-* [Extracting Action Items from Meeting Transcriptions](https://hexdocs.pm/instructor/extract-action-items-from-meeting-transcripts.html)
-* [Extracting Explorer.DataFrames from text](https://hexdocs.pm/instructor/text-to-dataframes.html)
-
-## Configuration
-
-To configure the default OpenAI adapter you can set the configuration,
-
-```elixir
-config :openai, api_key: "sk-........"
-config :openai, http_options: [recv_timeout: 10 * 60 * 1000]
-```
-
-To use a local LLM, you can install and run [llama.cpp server](https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md) and tell instructor to use it,
-
-```elixir
-config :instructor, adapter: Instructor.Adapters.Llamacpp
-```
+Check out our [Quickstart Guide](https://hexdocs.pm/instructor/quickstart.html) for more code snippets that you can run locally (in Livebook). Or, to get a better idea of the thinking behind Instructor, read more about our [Philosophy & Motivations](https://hexdocs.pm/instructor/philosophy.html).
 
 <!-- Docs -->
 
