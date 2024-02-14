@@ -456,6 +456,9 @@ defmodule Instructor do
     end
   end
 
+  defp parse_response_for_mode(:md_json, %{choices: [%{"message" => %{"content" => content}}]}),
+    do: Jason.decode(content)
+
   defp parse_response_for_mode(:json, %{choices: [%{"message" => %{"content" => content}}]}),
     do: Jason.decode(content)
 
@@ -463,6 +466,9 @@ defmodule Instructor do
          choices: [%{"message" => %{"tool_calls" => [%{"function" => %{"arguments" => args}}]}}]
        }),
        do: Jason.decode(args)
+
+  defp parse_stream_chunk_for_mode(:md_json, %{"choices" => [%{"delta" => %{"content" => chunk}}]}),
+       do: chunk
 
   defp parse_stream_chunk_for_mode(:json, %{"choices" => [%{"delta" => %{"content" => chunk}}]}),
     do: chunk
@@ -474,7 +480,7 @@ defmodule Instructor do
        }),
        do: chunk
 
-  defp parse_stream_chunk_for_mode(:tools, %{"choices" => [%{"finish_reason" => "stop"}]}), do: ""
+  defp parse_stream_chunk_for_mode(_, %{"choices" => [%{"finish_reason" => "stop"}]}), do: ""
 
   defp echo_response(%{
          choices: [
@@ -526,10 +532,27 @@ defmodule Instructor do
           """
         }
 
-        [sys_message | messages]
+        messages = [sys_message | messages]
+
+        case mode do
+          :md_json ->
+            messages ++
+              [
+                %{
+                  role: "assistant",
+                  content: "Here is the perfectly correctly formatted JSON\n```json"
+                }
+              ]
+
+          _ ->
+            messages
+        end
       end)
 
     case mode do
+      :md_json ->
+        params |> Keyword.put(:stop, "```")
+
       :json ->
         params
         |> Keyword.put(:response_format, %{
