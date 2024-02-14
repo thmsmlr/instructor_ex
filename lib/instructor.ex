@@ -28,7 +28,7 @@ defmodule Instructor do
     * `:response_model` - The Ecto schema to validate the response against, or a valid map of Ecto types (see [Schemaless Ecto](https://hexdocs.pm/ecto/Ecto.Changeset.html#module-schemaless-changesets)).
     * `:stream` - Whether to stream the response or not. (defaults to `false`)
     * `:validation_context` - The validation context to use when validating the response. (defaults to `%{}`)
-    * `:mode` - The mode to use when parsing the response. (defaults to `:tools`)
+    * `:mode` - The mode to use when parsing the response, :tools, :json, :md_json (defaults to `:tools`), generally speaking you don't need to change this unless you are not using OpenAI.
     * `:max_retries` - The maximum number of times to retry the LLM call if it fails, or does not pass validations.
                        (defaults to `0`)
 
@@ -89,9 +89,35 @@ defmodule Instructor do
         {:ok, %{name: "James Madison", birth_date: ~D[1751-03-16]}},
         {:ok, %{name: "James Monroe", birth_date: ~D[1758-04-28]}}
       ]
+
+  If there's a validation error, it will return an error tuple with the change set describing the errors.
+
+      iex> Instructor.chat_completion(%{
+      ...>   model: "gpt-3.5-turbo",
+      ...>   response_model: Instructor.Demos.SpamPrediction,
+      ...>   messages: [
+      ...>     %{
+      ...>       role: "user",
+      ...>       content: "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
+      ...>     }
+      ...> })
+      {:error,
+          %Ecto.Changeset{
+              changes: %{
+                  class: "foobar",
+                  score: -10.999
+              },
+              errors: [
+                  class: {"is invalid", [type: :string, validation: :cast]}
+              ],
+              valid?: false
+          }}
   """
   @spec chat_completion(Keyword.t()) ::
-          {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()} | {:error, String.t()} | Stream.t()
+          {:ok, Ecto.Schema.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, String.t()}
+          | Stream.t()
   def chat_completion(params) do
     params =
       params
@@ -243,7 +269,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     model =
       if is_ecto_schema(response_model) do
@@ -314,7 +340,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     adapter().chat_completion(params)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
@@ -362,7 +388,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params)
 
     adapter().chat_completion(params)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
@@ -392,7 +418,7 @@ defmodule Instructor do
     validation_context = Keyword.get(params, :validation_context, %{})
     max_retries = Keyword.get(params, :max_retries)
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_tool(mode, response_model, params)
+    params = params_for_mode(mode, response_model, params)
 
     model =
       if is_ecto_schema(response_model) do
@@ -453,17 +479,22 @@ defmodule Instructor do
     end
   end
 
+  defp parse_response_for_mode(:md_json, %{choices: [%{"message" => %{"content" => content}}]}),
+    do: Jason.decode(content)
+
+  defp parse_response_for_mode(:json, %{choices: [%{"message" => %{"content" => content}}]}),
+    do: Jason.decode(content)
+
   defp parse_response_for_mode(:tools, %{
-         choices: [
-           %{
-             "message" => %{
-               "tool_calls" => [%{"function" => %{"arguments" => args}}]
-             }
-           }
-         ]
-       }) do
-    Jason.decode(args)
-  end
+         choices: [%{"message" => %{"tool_calls" => [%{"function" => %{"arguments" => args}}]}}]
+       }),
+       do: Jason.decode(args)
+
+  defp parse_stream_chunk_for_mode(:md_json, %{"choices" => [%{"delta" => %{"content" => chunk}}]}),
+       do: chunk
+
+  defp parse_stream_chunk_for_mode(:json, %{"choices" => [%{"delta" => %{"content" => chunk}}]}),
+    do: chunk
 
   defp parse_stream_chunk_for_mode(:tools, %{
          "choices" => [
@@ -472,7 +503,7 @@ defmodule Instructor do
        }),
        do: chunk
 
-  defp parse_stream_chunk_for_mode(:tools, %{"choices" => [%{"finish_reason" => "stop"}]}), do: ""
+  defp parse_stream_chunk_for_mode(_, %{"choices" => [%{"finish_reason" => "stop"}]}), do: ""
 
   defp echo_response(%{
          choices: [
@@ -499,40 +530,76 @@ defmodule Instructor do
     ]
   end
 
-  defp params_for_tool(:tools, response_model, params) do
+  defp params_for_mode(mode, response_model, params) do
     json_schema = JSONSchema.from_ecto_schema(response_model)
 
     params =
       params
       |> Keyword.update(:messages, [], fn messages ->
+        decoded_json_schema = Jason.decode!(json_schema)
+
+        additional_definitions =
+          if defs = decoded_json_schema["$defs"] do
+            "\nHere are some more definitions to adhere too:\n" <> Jason.encode!(defs)
+          else
+            ""
+          end
+
         sys_message = %{
           role: "system",
           content: """
           As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
-
           #{json_schema}
+
+          #{additional_definitions}
           """
         }
 
-        [sys_message | messages]
-      end)
-      |> Keyword.put(:tools, [
-        %{
-          type: "function",
-          function: %{
-            "description" =>
-              "Correctly extracted `Schema` with all the required parameters with correct types",
-            "name" => "Schema",
-            "parameters" => json_schema |> Jason.decode!()
-          }
-        }
-      ])
-      |> Keyword.put(:tool_choice, %{
-        type: "function",
-        function: %{name: "Schema"}
-      })
+        messages = [sys_message | messages]
 
-    params
+        case mode do
+          :md_json ->
+            messages ++
+              [
+                %{
+                  role: "assistant",
+                  content: "Here is the perfectly correctly formatted JSON\n```json"
+                }
+              ]
+
+          _ ->
+            messages
+        end
+      end)
+
+    case mode do
+      :md_json ->
+        params |> Keyword.put(:stop, "```")
+
+      :json ->
+        params
+        |> Keyword.put(:response_format, %{
+          type: "json_object"
+        })
+
+      :tools ->
+        params
+        |> Keyword.put(:tools, [
+          %{
+            type: "function",
+            function: %{
+              "description" =>
+                "Correctly extracted `Schema` with all the required parameters with correct types",
+              "name" => "Schema",
+              "parameters" => json_schema |> Jason.decode!()
+            }
+          }
+        ])
+        |> Keyword.put(:tool_choice, %{
+          type: "function",
+          function: %{name: "Schema"}
+        })
+    end
   end
 
   defp call_validate(response_model, changeset, context) do
