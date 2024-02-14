@@ -89,6 +89,29 @@ defmodule Instructor do
         {:ok, %{name: "James Madison", birth_date: ~D[1751-03-16]}},
         {:ok, %{name: "James Monroe", birth_date: ~D[1758-04-28]}}
       ]
+
+  If there's a validation error, it will return an error tuple with the change set describing the errors.
+
+      iex> Instructor.chat_completion(%{
+      ...>   model: "gpt-3.5-turbo",
+      ...>   response_model: Instructor.Demos.SpamPrediction,
+      ...>   messages: [
+      ...>     %{
+      ...>       role: "user",
+      ...>       content: "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
+      ...>     }
+      ...> })
+      {:error,
+          %Ecto.Changeset{
+              changes: %{
+                  class: "foobar",
+                  score: -10.999
+              },
+              errors: [
+                  class: {"is invalid", [type: :string, validation: :cast]}
+              ],
+              valid?: false
+          }}
   """
   @spec chat_completion(Keyword.t()) ::
           {:ok, Ecto.Schema.t()}

@@ -361,7 +361,7 @@ defmodule JSONSchemaTest do
               "type" => "array"
             }
           },
-          "required" => ["children", "name"],
+          "required" => ["name", "children"],
           "type" => "object"
         }
       },

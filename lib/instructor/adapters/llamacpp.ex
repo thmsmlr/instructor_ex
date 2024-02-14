@@ -50,8 +50,6 @@ defmodule Instructor.Adapters.Llamacpp do
   defp do_streaming_chat_completion(prompt, grammar) do
     pid = self()
 
-    url = url()
-
     Stream.resource(
       fn ->
         Task.async(fn ->
