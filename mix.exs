@@ -26,13 +26,15 @@ defmodule Instructor.MixProject do
         extras: [
           "pages/quickstart.livemd",
           "pages/philosophy.md",
+          "pages/llm-providers/llama-cpp.livemd",
+          "pages/llm-providers/ollama.livemd",
           "pages/cookbook/text-classification.livemd",
           "pages/cookbook/qa-citations.livemd",
           "pages/cookbook/extract-action-items-from-meeting-transcripts.livemd",
-          "pages/cookbook/text-to-dataframes.livemd",
-          "pages/cookbook/llama-cpp.livemd"
+          "pages/cookbook/text-to-dataframes.livemd"
         ],
         groups_for_extras: [
+          "LLM Providers": ~r"pages/llm-providers/.*\.(md|livemd)",
           Cookbook: ~r"pages/cookbook/.*\.(md|livemd)"
         ],
         before_closing_body_tag: &before_closing_body_tag/1

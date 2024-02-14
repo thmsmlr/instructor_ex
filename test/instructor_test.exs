@@ -402,7 +402,7 @@ defmodule InstructorTest do
 
       TestHelpers.mock_openai_response_stream(mode, [
         %{name: "Thomas"},
-        %{name: "Jason"},
+        %{name: "Jason"}
       ])
 
       result =

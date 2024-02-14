@@ -28,7 +28,7 @@ defmodule Instructor do
     * `:response_model` - The Ecto schema to validate the response against, or a valid map of Ecto types (see [Schemaless Ecto](https://hexdocs.pm/ecto/Ecto.Changeset.html#module-schemaless-changesets)).
     * `:stream` - Whether to stream the response or not. (defaults to `false`)
     * `:validation_context` - The validation context to use when validating the response. (defaults to `%{}`)
-    * `:mode` - The mode to use when parsing the response. (defaults to `:tools`)
+    * `:mode` - The mode to use when parsing the response, :tools, :json, :md_json (defaults to `:tools`), generally speaking you don't need to change this unless you are not using OpenAI.
     * `:max_retries` - The maximum number of times to retry the LLM call if it fails, or does not pass validations.
                        (defaults to `0`)
 
