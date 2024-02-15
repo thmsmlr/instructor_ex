@@ -28,6 +28,7 @@ defmodule Instructor.MixProject do
           "pages/philosophy.md",
           "pages/llm-providers/llama-cpp.livemd",
           "pages/llm-providers/ollama.livemd",
+          "pages/llm-providers/together.livemd",
           "pages/cookbook/text-classification.livemd",
           "pages/cookbook/qa-citations.livemd",
           "pages/cookbook/extract-action-items-from-meeting-transcripts.livemd",

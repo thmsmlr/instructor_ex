@@ -1,0 +1,117 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Instructor w/ Together.ai
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: Path.expand("../../", __DIR__)}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [
+        api_key: System.fetch_env!("LB_TOGETHER_API_KEY"),
+        api_url: "https://api.together.xyz"
+      ]
+    ]
+  ]
+)
+```
+
+## Introduction
+
+[Together.ai](https://together.ai/) is an LLM inference provider that is OpenAI compatible. They provide a cheap and easy way to run many the open source models that you've heard about in the cloud in an open AI compliant way that supports things like function calling, jason mode, and the other guarantees that make instructor work.
+
+Using together.ai with instructor is as simple as pointing the API url of the OpenAIAdapter to together compute.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: Path.expand("../../", __DIR__)}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [
+        api_key: System.fetch_env!("LB_TOGETHER_API_KEY"),
+        api_url: "https://api.together.xyz"
+      ]
+    ]
+  ]
+)
+```
+
+You can sign up for an account by [together.ai](https://together.ai).
+
+```elixir
+defmodule President do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+Instructor.chat_completion(
+  model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+  response_model: President,
+  messages: [
+    %{role: "user", content: "Who was the first president of the United States?"}
+  ]
+)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %President{first_name: "George", last_name: "Washington", entered_office_date: ~D[1789-04-30]}}
+```
+
+```elixir
+Instructor.chat_completion(
+  model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+  stream: true,
+  mode: :json,
+  response_model: {:array, President},
+  messages: [
+    %{role: "user", content: "Who are the first three presidents"}
+  ]
+)
+|> Stream.each(fn {:ok, x} -> IO.inspect(x) end)
+|> Stream.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%President{
+  first_name: "George",
+  last_name: "Washington",
+  entered_office_date: ~D[1789-04-30]
+}
+%President{
+  first_name: "John",
+  last_name: "Adams",
+  entered_office_date: ~D[1797-03-04]
+}
+%President{
+  first_name: "Thomas",
+  last_name: "Jefferson",
+  entered_office_date: ~D[1801-03-04]
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+<!-- livebook:{"offset":2536,"stamp":{"token":"XCP.QHOX4VkWk-YRAzFdKV-4ud14dzKSHs7hbkAPI-bgKHiG5fsuv3lgFcjRBNsiBB59nJjT8wSP2x2PnujawMcfzSNTPHREFJKwOaE_nM9bxzhg74kLZxmB6BN1Ag","version":2}} -->
