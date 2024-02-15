@@ -113,12 +113,12 @@ defmodule Instructor do
               valid?: false
           }}
   """
-  @spec chat_completion(Keyword.t()) ::
+  @spec chat_completion(Keyword.t(), any()) ::
           {:ok, Ecto.Schema.t()}
           | {:error, Ecto.Changeset.t()}
           | {:error, String.t()}
           | Stream.t()
-  def chat_completion(params) do
+  def chat_completion(params, config \\ nil) do
     params =
       params
       |> Keyword.put_new(:max_retries, 0)
@@ -129,16 +129,16 @@ defmodule Instructor do
 
     case {response_model, is_stream} do
       {{:partial, {:array, response_model}}, true} ->
-        do_streaming_partial_array_chat_completion(response_model, params)
+        do_streaming_partial_array_chat_completion(response_model, params, config)
 
       {{:partial, response_model}, true} ->
-        do_streaming_partial_chat_completion(response_model, params)
+        do_streaming_partial_chat_completion(response_model, params, config)
 
       {{:array, response_model}, true} ->
-        do_streaming_array_chat_completion(response_model, params)
+        do_streaming_array_chat_completion(response_model, params, config)
 
       {response_model, false} ->
-        do_chat_completion(response_model, params)
+        do_chat_completion(response_model, params, config)
 
       {_, true} ->
         raise """
@@ -259,7 +259,7 @@ defmodule Instructor do
     changeset
   end
 
-  defp do_streaming_partial_array_chat_completion(response_model, params) do
+  defp do_streaming_partial_array_chat_completion(response_model, params, config) do
     wrapped_model = %{
       value:
         {:parameterized, Ecto.Embedded,
@@ -278,7 +278,7 @@ defmodule Instructor do
         {%{}, response_model}
       end
 
-    adapter().chat_completion(params)
+    adapter().chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
@@ -330,7 +330,7 @@ defmodule Instructor do
     )
   end
 
-  defp do_streaming_partial_chat_completion(response_model, params) do
+  defp do_streaming_partial_chat_completion(response_model, params, config) do
     wrapped_model = %{
       value:
         {:parameterized, Ecto.Embedded,
@@ -342,7 +342,7 @@ defmodule Instructor do
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_mode(mode, wrapped_model, params)
 
-    adapter().chat_completion(params)
+    adapter().chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
@@ -378,7 +378,7 @@ defmodule Instructor do
     )
   end
 
-  defp do_streaming_array_chat_completion(response_model, params) do
+  defp do_streaming_array_chat_completion(response_model, params, config) do
     wrapped_model = %{
       value:
         {:parameterized, Ecto.Embedded,
@@ -390,7 +390,7 @@ defmodule Instructor do
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_mode(mode, wrapped_model, params)
 
-    adapter().chat_completion(params)
+    adapter().chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Jaxon.Stream.from_enumerable()
     |> Jaxon.Stream.query([:root, "value", :all])
@@ -414,7 +414,7 @@ defmodule Instructor do
     end)
   end
 
-  defp do_chat_completion(response_model, params) do
+  defp do_chat_completion(response_model, params, config) do
     validation_context = Keyword.get(params, :validation_context, %{})
     max_retries = Keyword.get(params, :max_retries)
     mode = Keyword.get(params, :mode, :tools)
@@ -427,7 +427,7 @@ defmodule Instructor do
         {%{}, response_model}
       end
 
-    with {:llm, {:ok, response}} <- {:llm, adapter().chat_completion(params)},
+    with {:llm, {:ok, response}} <- {:llm, adapter().chat_completion(params, config)},
          {:valid_json, {:ok, params}} <- {:valid_json, parse_response_for_mode(mode, response)},
          changeset <- cast_all(model, params),
          {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
@@ -466,7 +466,7 @@ defmodule Instructor do
                 ]
             end)
 
-          do_chat_completion(response_model, params)
+          do_chat_completion(response_model, params, config)
         else
           {:error, changeset}
         end
@@ -479,14 +479,16 @@ defmodule Instructor do
     end
   end
 
-  defp parse_response_for_mode(:md_json, %{choices: [%{"message" => %{"content" => content}}]}),
-    do: Jason.decode(content)
+  defp parse_response_for_mode(:md_json, %{"choices" => [%{"message" => %{"content" => content}}]}),
+       do: Jason.decode(content)
 
-  defp parse_response_for_mode(:json, %{choices: [%{"message" => %{"content" => content}}]}),
+  defp parse_response_for_mode(:json, %{"choices" => [%{"message" => %{"content" => content}}]}),
     do: Jason.decode(content)
 
   defp parse_response_for_mode(:tools, %{
-         choices: [%{"message" => %{"tool_calls" => [%{"function" => %{"arguments" => args}}]}}]
+         "choices" => [
+           %{"message" => %{"tool_calls" => [%{"function" => %{"arguments" => args}}]}}
+         ]
        }),
        do: Jason.decode(args)
 
@@ -506,7 +508,7 @@ defmodule Instructor do
   defp parse_stream_chunk_for_mode(_, %{"choices" => [%{"finish_reason" => "stop"}]}), do: ""
 
   defp echo_response(%{
-         choices: [
+         "choices" => [
            %{
              "message" =>
                %{

@@ -5,18 +5,15 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, "~> 0.0.4"},
+    {:instructor, path: Path.expand("../../", __DIR__)},
     {:explorer, "~> 0.7.2"},
     {:kino, "~> 0.12.0"},
     {:kino_explorer, "~> 0.1.13"}
   ],
   config: [
     instructor: [
-      adapter: Instructor.Adapters.OpenAI
-    ],
-    openai: [
-      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
-      http_options: [recv_timeout: 10 * 60 * 1000]
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [api_key: System.fetch_env!("LB_OPENAI_API_KEY")]
     ]
   ]
 )
@@ -136,4 +133,4 @@ Kino.Layout.tabs(
 )
 ```
 
-<!-- livebook:{"offset":3937,"stamp":{"token":"XCP.XhYvx2wzcyQz7wcBfHdIUOr8CnbPLd1irY9_ePvQeVknS7O_zuKd3Bn64RfztsJ8YVWxqLWhU8swQTMfE1paJKK53UApZ9tPfFLiyzq3t1AK4MhWVeIon9Q","version":2}} -->
+<!-- livebook:{"offset":3901,"stamp":{"token":"XCP.TJaqw5CG6trQ4ACppLEU2MGD1JddFoOIOtNiGYcASjTho5a3Bya6X1-gAokBiv0YLj7_Oy_E3wlgdGKSsDHQAWz8fO1uVeUyvMyVuJKjlK_VB_Ok0oD-edc","version":2}} -->

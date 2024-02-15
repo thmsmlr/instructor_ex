@@ -115,7 +115,7 @@ defmodule Instructor.Adapters.Llamacpp do
 
   defp to_openai_response(params) do
     %{
-      choices: [
+      "choices" => [
         %{
           "message" => %{
             "tool_calls" => [

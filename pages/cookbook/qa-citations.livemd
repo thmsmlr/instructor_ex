@@ -5,15 +5,12 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, "~> 0.0.4"}
+    {:instructor, path: Path.expand("../../", __DIR__)}
   ],
   config: [
     instructor: [
-      adapter: Instructor.Adapters.OpenAI
-    ],
-    openai: [
-      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
-      http_options: [recv_timeout: 10 * 60 * 1000]
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [api_key: System.fetch_env!("LB_OPENAI_API_KEY")]
     ]
   ]
 )
@@ -152,7 +149,7 @@ answer_with_citations.(question, context)
    question: "What companies and side projects has the author worked on?",
    answer: [
      %QuestionAnswer.Citation{
-       statement: "I have worked at Mortar Data (acquired by DataDog) and Stitch Fix.",
+       statement: "I have worked at Mortar Data and Stitch Fix.",
        quote: "Over that time I have worked at Mortar Data (acquired by DataDog), and Stitch Fix building data platforms and doing MLOps."
      },
      %QuestionAnswer.Citation{
@@ -309,4 +306,4 @@ changeset = Instructor.cast_all(%LLMQuestionAnswer{}, params)
 >
 ```
 
-<!-- livebook:{"offset":10060,"stamp":{"token":"XCP.FYaXPmnw7ZAexPoEhYU1V0K3VV_Tyj7s5YwTPKvEPI-Vmmb7P92KT4S5BsVBGW2nCUS7hxRBBRl27A_zZRrVOfnOeZVj51d_TcJvWrbieSyfHgSNA0nLZgo","version":2}} -->
+<!-- livebook:{"offset":10002,"stamp":{"token":"XCP.7Hys0MtnvKlgvvdERiX6WVx9CSZZddOVeRwgna5Lju053elnhBBsxc4eOjG65xs56kEHUIeT5S3Ef9qfQo8_k-QweHafP-qdu_1OutGHBpTXP56WMuHf85A","version":2}} -->

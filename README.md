@@ -87,6 +87,8 @@ Check out our [Quickstart Guide](https://hexdocs.pm/instructor/quickstart.html) 
 
 Optionally, you can also customize the your llama.cpp calls (with defaults shown):
 ```elixir
+llamacpp
+config :instructor, adapter: Instructor.Adapters.Llamacpp
 config :instructor, :llamacpp,
     chat_template: :mistral_instruct,
     api_url: "http://localhost:8080/completion"

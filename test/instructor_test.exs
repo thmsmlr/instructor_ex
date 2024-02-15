@@ -17,8 +17,7 @@ defmodule InstructorTest do
 
       :openai ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
-        Application.put_env(:openai, :api_key, System.fetch_env!("OPENAI_API_KEY"))
-        Application.put_env(:openai, :http_options, recv_timeout: :infinity, async: :once)
+        Application.put_env(:instructor, :openai, api_key: System.fetch_env!("OPENAI_API_KEY"))
 
       :openai_mock ->
         Application.put_env(:instructor, :adapter, InstructorTest.MockOpenAI)
@@ -38,7 +37,7 @@ defmodule InstructorTest do
   def mock_stream_response(_, _, _), do: nil
 
   for adapter <- [:openai_mock, :openai, :llamacpp] do
-    # for adapter <- [:openai] do
+  # for adapter <- [:openai] do
     describe "#{inspect(adapter)}" do
       @tag adapter: adapter
       test "schemaless ecto" do

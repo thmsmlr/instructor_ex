@@ -100,7 +100,6 @@ defmodule Instructor.MixProject do
   defp deps do
     [
       {:ecto, "~> 3.11"},
-      {:openai, "~> 0.6.0"},
       {:jason, "~> 1.4.0"},
       {:req, "~> 0.4.0"},
       {:jaxon, "~> 2.0"},
