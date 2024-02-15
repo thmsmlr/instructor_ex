@@ -5,15 +5,12 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, "~> 0.0.4"}
+    {:instructor, path: Path.expand("../../", __DIR__)}
   ],
   config: [
     instructor: [
-      adapter: Instructor.Adapters.OpenAI
-    ],
-    openai: [
-      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
-      http_options: [recv_timeout: 10 * 60 * 1000]
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [api_key: System.fetch_env!("LB_OPENAI_API_KEY")]
     ]
   ]
 )
@@ -86,7 +83,7 @@ is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, %SpamPrediction{class: :spam, reason: "Typical spam email", score: 0.95}}
+{:ok, %SpamPrediction{class: :spam, reason: "Nigerian prince email", score: 0.95}}
 ```
 
 We don't have to stop just at a boolean inclusion, we can also easily extend this idea to multiple categories or classes that we can classify the text into. In this example, let's consider classifying support emails. We want to know whether it's a `general_inquiry`, `billing_issue`, or a `technical_issue` perhaps it rightly fits in multiple classes. This can be useful if we want to cc' specialized support agents when intersecting customer issues occur
@@ -137,4 +134,4 @@ classify_email.("My account is locked and I can't access my billing info.")
 [:technical_issue, :billing_issue]
 ```
 
-<!-- livebook:{"offset":4371,"stamp":{"token":"XCP.lm8-gCNQ__srSmj_-KNNpiLvPXekRBqWxiCLYdoXQkjLsMdfWaFcEIjyzT1m1MI7L6BWXvG-SM1eq9aomO34TSRKimAlZFY6uhAiGf9IM1WbXPwb1Jvekrg","version":2}} -->
+<!-- livebook:{"offset":4338,"stamp":{"token":"XCP.l_oO3E1dm0sy6Oq4Uq3ktl3R8U6M9-zN_arwnjlPva--WJOrq6RE3dmtT8_DyNHCbgP_Ij1kt41cOG6BtPkLbwK9Akb5d52zKN17vBnP_VYhMoZ1xl8bFKg","version":2}} -->

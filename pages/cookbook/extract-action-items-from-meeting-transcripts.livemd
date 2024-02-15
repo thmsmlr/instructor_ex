@@ -5,16 +5,13 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, "~> 0.0.4"},
+    {:instructor, path: Path.expand("../../", __DIR__)},
     {:kino, "~> 0.12.0"}
   ],
   config: [
     instructor: [
-      adapter: Instructor.Adapters.OpenAI
-    ],
-    openai: [
-      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
-      http_options: [recv_timeout: 10 * 60 * 1000]
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [api_key: System.fetch_env!("LB_OPENAI_API_KEY")]
     ]
   ]
 )
@@ -129,60 +126,42 @@ end
    tickets: [
      %MeetingNotes.Ticket{
        id: "1",
-       name: "Authentication System Improvement",
-       description: "Improve the authentication system",
+       name: "Improve authentication system",
+       description: "Work on improving both front-end and back-end of the authentication system",
        priority: :high,
        assignees: ["Bob"],
        subtasks: [
-         %MeetingNotes.Ticket.SubTasks{id: "2", name: "Front-end Revamp"},
-         %MeetingNotes.Ticket.SubTasks{id: "3", name: "Back-end Optimization"}
+         %MeetingNotes.Ticket.SubTasks{id: "1.1", name: "Front-end revamp"},
+         %MeetingNotes.Ticket.SubTasks{id: "1.2", name: "Back-end optimization"}
        ],
        dependencies: []
      },
      %MeetingNotes.Ticket{
        id: "2",
-       name: "Front-end Revamp",
-       description: "Revamp the front-end of the authentication system",
-       priority: :high,
-       assignees: ["Carol"],
-       subtasks: [],
-       dependencies: []
-     },
-     %MeetingNotes.Ticket{
-       id: "3",
-       name: "Back-end Optimization",
-       description: "Optimize the back-end of the authentication system",
-       priority: :high,
-       assignees: ["Bob"],
-       subtasks: [],
-       dependencies: []
-     },
-     %MeetingNotes.Ticket{
-       id: "4",
-       name: "Integration with Billing System",
-       description: "Integrate the improved authentication system with the new billing system",
+       name: "Integrate authentication system with billing system",
+       description: "Integration of the improved authentication system with the new billing system",
        priority: :medium,
        assignees: ["Bob"],
        subtasks: [],
-       dependencies: ["3"]
+       dependencies: ["1", "3"]
      },
      %MeetingNotes.Ticket{
-       id: "5",
-       name: "Billing System",
+       id: "3",
+       name: "Implement new billing system",
        description: "Implement the new billing system",
        priority: :medium,
        assignees: ["Bob"],
        subtasks: [],
-       dependencies: []
+       dependencies: ["1.2"]
      },
      %MeetingNotes.Ticket{
-       id: "6",
-       name: "Update User Documentation",
+       id: "4",
+       name: "Update user documentation",
        description: "Update the user documentation to reflect the changes",
        priority: :low,
        assignees: ["Carol"],
        subtasks: [],
-       dependencies: ["2"]
+       dependencies: ["1.1"]
      }
    ]
  }}
@@ -254,64 +233,51 @@ generate_tickets_diagram.(tickets)
 
 ```mermaid
   erDiagram
-      "Authentication System Improvement" {
+      "Improve authentication system" {
     priority high
     assignees Bob
   }
 
-  "Authentication System Improvement" ||--o| "Front-end Revamp" : "Has Subtask"
+  "Improve authentication system" ||--o| "Front-end revamp" : "Has Subtask"
 
-"Authentication System Improvement" ||--o| "Back-end Optimization" : "Has Subtask"
-
-  
-
-  "Front-end Revamp" {
-    priority high
-    assignees Carol
-  }
+"Improve authentication system" ||--o| "Back-end optimization" : "Has Subtask"
 
   
-  
 
-  "Back-end Optimization" {
-    priority high
-    assignees Bob
-  }
-
-  
-  
-
-  "Integration with Billing System" {
+  "Integrate authentication system with billing system" {
     priority medium
     assignees Bob
   }
 
   
-  "Integration with Billing System" ||--o| "Back-end Optimization" : "Depends on"
+  "Integrate authentication system with billing system" ||--o| "Improve authentication system" : "Depends on"
+
+"Integrate authentication system with billing system" ||--o| "Implement new billing system" : "Depends on"
 
 
-  "Billing System" {
+  "Implement new billing system" {
     priority medium
     assignees Bob
   }
 
   
-  
+  "Implement new billing system" ||--o| "Back-end optimization" : "Depends on"
 
-  "Update User Documentation" {
+
+  "Update user documentation" {
     priority low
     assignees Carol
   }
 
   
-  "Update User Documentation" ||--o| "Front-end Revamp" : "Depends on"
+  "Update user documentation" ||--o| "Front-end revamp" : "Depends on"
 
 
-      "Front-end Revamp"
+      "Front-end revamp"
 
-  "Back-end Optimization"
+  "Back-end optimization"
 
 
 ```
 
-<!-- livebook:{"offset":8936,"stamp":{"token":"XCP.uQ3Vg5d5SJ0CXs8oo1DnB8osSACGyTdPOciHqlOXH9UqjPvv6nYGLAuv3vcpcEYe6NNKRUxJmf9hwowNr_IPB9MoyeTL7tb4NGorGz0GJkAPNMXYOG65fOU","version":2}} -->
+<!-- livebook:{"offset":8564,"stamp":{"token":"XCP.r7EW2OC7jtbb6b5Ia3hlM6s0Re5gMakLvJEmYUeOPAl2y33iXBRloE3kzxlSJjRurk9-6CRIzqyjA0dNOYMLg1Hwxb6cXZeiBORT5Zv04e0aOdjayHd3mQ8","version":2}} -->
