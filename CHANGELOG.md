@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/thmsmlr/instructor_ex/compare/v0.0.4..main)
+## [Unreleased](https://github.com/thmsmlr/instructor_ex/compare/v0.0.5..main)
+
+## [v0.0.5](https://github.com/thmsmlr/instructor_ex/compare/v0.0.4..v0.0.5)
 
 ### Added
 
