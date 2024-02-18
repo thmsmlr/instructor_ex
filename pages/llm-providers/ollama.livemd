@@ -1,0 +1,70 @@
+# Local Instructor w/ Ollama
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: Path.expand("../../", __DIR__)},
+    {:kino_shell, "~> 0.1.2"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [
+        api_key: "ollama",
+        api_url: "http://localhost:11434"
+      ]
+    ]
+  ]
+)
+```
+
+## Setup Ollama
+
+TODO
+
+<!-- livebook:{"attrs":"eyJpbl9iYWNrZ3JvdW5kIjpmYWxzZSwicmVzdGFydCI6ZmFsc2UsInNvdXJjZSI6IiMgb2xsYW1hIHB1bGwgbm91cy1oZXJtZXMyLW1peHRyYWw6OHg3Yi1kcG8tcTZfSyJ9","chunks":null,"kind":"Elixir.KinoShell.ShellScriptCell","livebook_object":"smart_cell"} -->
+
+```elixir
+{_, 0} =
+  System.cmd("bash", ["-lc", "# ollama pull nous-hermes2-mixtral:8x7b-dpo-q6_K"],
+    into: IO.stream()
+  )
+
+:ok
+```
+
+```elixir
+defmodule President do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+Instructor.chat_completion(
+  mode: :json,
+  model: "mistral:7b-instruct-q6_K",
+  response_model: President,
+  messages: [
+    %{role: "user", content: "Who was the first president of the United States?"}
+  ]
+)
+```
+
+```elixir
+Instructor.chat_completion(
+  model: "nous-hermes2-mixtral:8x7b-dpo-q6_K",
+  mode: :json,
+  stream: true,
+  response_model: {:array, President},
+  messages: [
+    %{role: "user", content: "Who are the first three presidents"}
+  ]
+)
+|> Stream.each(fn {:ok, x} -> IO.inspect(x) end)
+|> Stream.run()
+```

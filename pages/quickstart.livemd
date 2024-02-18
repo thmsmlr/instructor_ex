@@ -5,15 +5,12 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, ">= 0.0.4"}
+    {:instructor, path: Path.expand("../", __DIR__)}
   ],
   config: [
     instructor: [
-      adapter: Instructor.Adapters.OpenAI
-    ],
-    openai: [
-      api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
-      http_options: [recv_timeout: :infinity, async: :once]
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [api_key: System.fetch_env!("LB_OPENAI_API_KEY")]
     ]
   ]
 )
@@ -199,17 +196,14 @@ Instructor.chat_completion(
 
 ```
 
-09:26:02.166 [debug] Retrying LLM call for NumberSeries:
+11:15:25.188 [debug] Retrying LLM call for NumberSeries:
 
  "series - The sum of the series must be even\nseries - should have at least 10 item(s)"
 
-09:26:03.500 [debug] Retrying LLM call for NumberSeries:
+11:15:26.662 [debug] Retrying LLM call for NumberSeries:
 
  "series - The sum of the series must be even"
 
-09:26:04.894 [debug] Retrying LLM call for NumberSeries:
-
- "series - should have at least 10 item(s)"
 ```
 
 <!-- livebook:{"output":true} -->
@@ -513,4 +507,4 @@ Instructor.chat_completion(
 
 And just like that, you can extend Instructor to get the LLM to return whatever you want.
 
-<!-- livebook:{"offset":16811,"stamp":{"token":"XCP.ndGOxbYug96uItmWdLzMC2APz6UJJDU1wCHZtX66FsgRULoYsg4GJKvf04S900T7kZyIjjdTFWaacgcALOLldAyGOQhevUK3tUOZigXqxUq29f0GA0fLBSg","version":2}} -->
+<!-- livebook:{"offset":16680,"stamp":{"token":"XCP.7_vOOq_exu6XoigIHJtkt7GxlcdqzdN4j6ovWaQa8djrcdzrCyjHZtk73Msk-X9EzBr9RyKdDrOgtV16ium53Gz50dKwtBgzzmgt8v-ZVXFHa8xbY6DE1rA","version":2}} -->

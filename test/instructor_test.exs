@@ -17,33 +17,32 @@ defmodule InstructorTest do
 
       :openai ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
-        Application.put_env(:openai, :api_key, System.fetch_env!("OPENAI_API_KEY"))
-        Application.put_env(:openai, :http_options, recv_timeout: :infinity, async: :once)
+        Application.put_env(:instructor, :openai, api_key: System.fetch_env!("OPENAI_API_KEY"))
 
       :openai_mock ->
         Application.put_env(:instructor, :adapter, InstructorTest.MockOpenAI)
     end
   end
 
-  def mock_response(:openai_mock, expected) do
-    TestHelpers.mock_openai_response(expected)
+  def mock_response(:openai_mock, mode, expected) do
+    TestHelpers.mock_openai_response(mode, expected)
   end
 
-  def mock_response(_, _), do: nil
+  def mock_response(_, _, _), do: nil
 
-  def mock_stream_response(:openai_mock, expected) do
-    TestHelpers.mock_openai_response_stream(expected)
+  def mock_stream_response(:openai_mock, mode, expected) do
+    TestHelpers.mock_openai_response_stream(mode, expected)
   end
 
-  def mock_stream_response(_, _), do: nil
+  def mock_stream_response(_, _, _), do: nil
 
   for adapter <- [:openai_mock, :openai, :llamacpp] do
-    # for adapter <- [:openai] do
+  # for adapter <- [:openai] do
     describe "#{inspect(adapter)}" do
       @tag adapter: adapter
       test "schemaless ecto" do
         expected = %{name: "George Washington", birth_date: ~D[1732-02-22]}
-        mock_response(unquote(adapter), expected)
+        mock_response(unquote(adapter), :tools, expected)
 
         result =
           Instructor.chat_completion(
@@ -72,7 +71,7 @@ defmodule InstructorTest do
       @tag adapter: adapter
       test "basic ecto model" do
         expected = %{class: :spam, score: 0.9}
-        mock_response(unquote(adapter), expected)
+        mock_response(unquote(adapter), :tools, expected)
 
         result =
           Instructor.chat_completion(
@@ -138,7 +137,7 @@ defmodule InstructorTest do
           utc_datetime_usec: "2021-08-01T12:00:00.000000Z"
         }
 
-        mock_response(unquote(adapter), expected)
+        mock_response(unquote(adapter), :tools, expected)
 
         result =
           Instructor.chat_completion(
@@ -209,7 +208,7 @@ defmodule InstructorTest do
           %{name: "Thomas Jefferson", birthdate: ~D[1743-04-13]}
         ]
 
-        mock_stream_response(unquote(adapter), presidents)
+        mock_stream_response(unquote(adapter), :tools, presidents)
 
         result =
           Instructor.chat_completion(
@@ -234,7 +233,7 @@ defmodule InstructorTest do
       test "stream partial object" do
         president = %{name: "George Washington", birthdate: ~D[1732-02-22]}
 
-        mock_stream_response(unquote(adapter), president)
+        mock_stream_response(unquote(adapter), :tools, president)
 
         result =
           Instructor.chat_completion(
@@ -269,7 +268,7 @@ defmodule InstructorTest do
           %{name: "John Adams", birthdate: ~D[1735-10-30]}
         ]
 
-        mock_stream_response(unquote(adapter), presidents)
+        mock_stream_response(unquote(adapter), :tools, presidents)
 
         result =
           Instructor.chat_completion(
@@ -317,13 +316,13 @@ defmodule InstructorTest do
 
   @tag adapter: :openai_mock
   test "llm validator" do
-    TestHelpers.mock_openai_response(%{
+    TestHelpers.mock_openai_response(:tools, %{
       question: "What is the meaning of life?",
       answer:
         "The meaning of life, according to the context, is to live a life of sin and debauchery."
     })
 
-    TestHelpers.mock_openai_response(%{
+    TestHelpers.mock_openai_response(:tools, %{
       valid?: false,
       reason: "The statement promotes sin and debauchery, which is objectionable."
     })
@@ -345,8 +344,8 @@ defmodule InstructorTest do
 
   @tag adapter: :openai_mock
   test "retry upto n times" do
-    TestHelpers.mock_openai_response(%{wrong_field: "foobar"})
-    TestHelpers.mock_openai_response(%{wrong_field: "foobar"})
+    TestHelpers.mock_openai_response(:tools, %{wrong_field: "foobar"})
+    TestHelpers.mock_openai_response(:tools, %{wrong_field: "foobar"})
 
     result =
       Instructor.chat_completion(
@@ -360,9 +359,9 @@ defmodule InstructorTest do
 
     assert {:error, %Ecto.Changeset{valid?: false}} = result
 
-    TestHelpers.mock_openai_response(%{wrong_field: "foobar"})
-    TestHelpers.mock_openai_response(%{field: 123})
-    TestHelpers.mock_openai_response(%{field: "foobar"})
+    TestHelpers.mock_openai_response(:tools, %{wrong_field: "foobar"})
+    TestHelpers.mock_openai_response(:tools, %{field: 123})
+    TestHelpers.mock_openai_response(:tools, %{field: "foobar"})
 
     result =
       Instructor.chat_completion(
@@ -375,5 +374,49 @@ defmodule InstructorTest do
       )
 
     assert {:ok, %{field: "foobar"}} = result
+  end
+
+  for mode <- [:tools, :json, :md_json] do
+    @tag adapter: :openai_mock
+    test "handles #{mode}" do
+      mode = unquote(mode)
+      TestHelpers.mock_openai_response(mode, %{name: "Thomas"})
+
+      result =
+        Instructor.chat_completion(
+          model: "gpt-3.5-turbo",
+          mode: mode,
+          response_model: %{name: :string},
+          messages: [
+            %{role: "user", content: "What's my name?"}
+          ]
+        )
+
+      assert {:ok, %{name: "Thomas"}} = result
+    end
+
+    @tag adapter: :openai_mock
+    test "handles streaming #{mode}" do
+      mode = unquote(mode)
+
+      TestHelpers.mock_openai_response_stream(mode, [
+        %{name: "Thomas"},
+        %{name: "Jason"}
+      ])
+
+      result =
+        Instructor.chat_completion(
+          model: "gpt-3.5-turbo",
+          mode: mode,
+          stream: true,
+          response_model: {:array, %{name: :string}},
+          messages: [
+            %{role: "user", content: "Repeat after me: Thomas, Jason"}
+          ]
+        )
+
+      assert [ok: %{name: "Thomas"}, ok: %{name: "Jason"}] =
+               result |> Enum.to_list()
+    end
   end
 end

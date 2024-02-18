@@ -5,7 +5,7 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, path: "/Users/thomas/code/instructor_ex"},
+    {:instructor, path: Path.expand("../../", __DIR__)},
     {:kino_shell, "~> 0.1.2"}
   ],
   config: [
@@ -62,12 +62,12 @@ I llama.cpp build info:
 I UNAME_S:   Darwin
 I UNAME_P:   arm
 I UNAME_M:   arm64
-I CFLAGS:    -I. -Icommon -D_XOPEN_SOURCE=600 -D_DARWIN_C_SOURCE -DNDEBUG -DHAVE_BUGGY_APPLE_LINKER -DGGML_USE_ACCELERATE -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64 -DGGML_USE_METAL  -std=c11   -fPIC -O3 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -pthread -Wunreachable-code-break -Wunreachable-code-return -Wdouble-promotion 
-I CXXFLAGS:  -I. -Icommon -D_XOPEN_SOURCE=600 -D_DARWIN_C_SOURCE -DNDEBUG -DHAVE_BUGGY_APPLE_LINKER -DGGML_USE_ACCELERATE -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64 -DGGML_USE_METAL  -std=c++11 -fPIC -O3 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wmissing-declarations -Wmissing-noreturn -pthread   -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi
+I CFLAGS:    -I. -Icommon -D_XOPEN_SOURCE=600 -D_DARWIN_C_SOURCE -DNDEBUG -DGGML_USE_ACCELERATE -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64 -DGGML_USE_METAL  -std=c11   -fPIC -O3 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -pthread -Wunreachable-code-break -Wunreachable-code-return -Wdouble-promotion 
+I CXXFLAGS:  -I. -Icommon -D_XOPEN_SOURCE=600 -D_DARWIN_C_SOURCE -DNDEBUG -DGGML_USE_ACCELERATE -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64 -DGGML_USE_METAL  -std=c++11 -fPIC -O3 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wmissing-declarations -Wmissing-noreturn -pthread   -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi
 I NVCCFLAGS:  
 I LDFLAGS:   -framework Accelerate -framework Foundation -framework Metal -framework MetalKit 
-I CC:        Apple clang version 15.0.0 (clang-1500.0.40.1)
-I CXX:       Apple clang version 15.0.0 (clang-1500.0.40.1)
+I CC:        Apple clang version 15.0.0 (clang-1500.1.0.2.5)
+I CXX:       Apple clang version 15.0.0 (clang-1500.1.0.2.5)
 
 make: Nothing to be done for `default'.
 ```
@@ -86,7 +86,7 @@ On a fairly modest machine, you should be able to run a 7B model that is quantit
 
 Download the model somewhere on your hard drive and then we can set up the local Llama server to run against it.
 
-<!-- livebook:{"attrs":"eyJpbl9iYWNrZ3JvdW5kIjp0cnVlLCJyZXN0YXJ0Ijp0cnVlLCJzb3VyY2UiOiIvVXNlcnMvdGhvbWFzL2NvZGUvbGxhbWEuY3BwL3NlcnZlciAtbnAgNCAtY2IgLXYgLW0gfi9Eb3dubG9hZHMvbWlzdHJhbC03Yi1pbnN0cnVjdC12MC4yLlE2X0suZ2d1ZiJ9","chunks":null,"kind":"Elixir.KinoShell.ShellScriptCell","livebook_object":"smart_cell"} -->
+<!-- livebook:{"attrs":"eyJpbl9iYWNrZ3JvdW5kIjp0cnVlLCJyZXN0YXJ0IjpmYWxzZSwic291cmNlIjoiL1VzZXJzL3Rob21hcy9jb2RlL2xsYW1hLmNwcC9zZXJ2ZXIgLW5wIDQgLWNiIC12IC1tIH4vRG93bmxvYWRzL21pc3RyYWwtN2ItaW5zdHJ1Y3QtdjAuMi5RNl9LLmdndWYifQ","chunks":null,"kind":"Elixir.KinoShell.ShellScriptCell","livebook_object":"smart_cell"} -->
 
 ```elixir
 frame = Kino.Frame.new() |> Kino.render()
@@ -118,7 +118,7 @@ child_spec =
     ])
   end)
 
-Kino.start_child(%{child_spec | restart: :permanent})
+Kino.start_child(%{child_spec | restart: :temporary})
 Kino.nothing()
 ```
 

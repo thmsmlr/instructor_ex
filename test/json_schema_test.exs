@@ -158,19 +158,19 @@ defmodule JSONSchemaTest do
         }
       },
       "required" => [
-        "integer",
-        "date",
-        "float",
-        "time",
-        "string",
-        "map",
-        "boolean",
         "array",
+        "boolean",
+        "date",
         "decimal",
+        "float",
+        "integer",
+        "map",
         "map_two",
-        "time_usec",
         "naive_datetime",
         "naive_datetime_usec",
+        "string",
+        "time",
+        "time_usec",
         "utc_datetime",
         "utc_datetime_usec"
       ],
@@ -266,7 +266,7 @@ defmodule JSONSchemaTest do
           "child" => %{"$ref" => "#/$defs/JSONSchemaTest.Child"},
           "id" => %{"title" => "id", "type" => "integer"}
         },
-        "required" => ["id", "child"],
+        "required" => ["child", "id"],
         "title" => "JSONSchemaTest.Demo",
         "type" => "object"
       }
@@ -317,7 +317,7 @@ defmodule JSONSchemaTest do
         },
         "id" => %{"title" => "id", "type" => "integer"}
       },
-      "required" => ["id", "children"],
+      "required" => ["children", "id"],
       "title" => "JSONSchemaTest.Demo",
       "type" => "object"
     }

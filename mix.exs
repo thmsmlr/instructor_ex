@@ -26,18 +26,23 @@ defmodule Instructor.MixProject do
         extras: [
           "pages/quickstart.livemd",
           "pages/philosophy.md",
+          "pages/llm-providers/llama-cpp.livemd",
+          "pages/llm-providers/ollama.livemd",
+          "pages/llm-providers/together.livemd",
           "pages/cookbook/text-classification.livemd",
           "pages/cookbook/qa-citations.livemd",
           "pages/cookbook/extract-action-items-from-meeting-transcripts.livemd",
           "pages/cookbook/text-to-dataframes.livemd",
-          "pages/cookbook/llama-cpp.livemd"
+          "pages/cookbook/gpt4-vision.livemd"
         ],
         groups_for_extras: [
+          "LLM Providers": ~r"pages/llm-providers/.*\.(md|livemd)",
           Cookbook: ~r"pages/cookbook/.*\.(md|livemd)"
         ],
         before_closing_body_tag: &before_closing_body_tag/1
       ],
-      package: package()
+      package: package(),
+      aliases: aliases()
     ]
   end
 
@@ -94,11 +99,19 @@ defmodule Instructor.MixProject do
 
   def before_closing_body_tag(_), do: ""
 
+  defp aliases do
+    [docs: ["docs", &copy_images/1]]
+  end
+
+  defp copy_images(_) do
+    File.mkdir_p("doc/files/")
+    File.cp!("pages/cookbook/files/shopify-screenshot.png", "doc/files/shopify-screenshot.png")
+  end
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:ecto, "~> 3.11"},
-      {:openai, "~> 0.6.0"},
       {:jason, "~> 1.4.0"},
       {:req, "~> 0.4.0"},
       {:jaxon, "~> 2.0"},
