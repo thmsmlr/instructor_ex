@@ -25,6 +25,7 @@ defmodule Instructor do
 
   Additionally, the following parameters are supported:
 
+    * `:adapter` - The adapter to use for chat completion. (defaults to the configured adapter, which defaults to `Instructor.Adapters.OpenAI`)
     * `:response_model` - The Ecto schema to validate the response against, or a valid map of Ecto types (see [Schemaless Ecto](https://hexdocs.pm/ecto/Ecto.Changeset.html#module-schemaless-changesets)).
     * `:stream` - Whether to stream the response or not. (defaults to `false`)
     * `:validation_context` - The validation context to use when validating the response. (defaults to `%{}`)
@@ -278,7 +279,7 @@ defmodule Instructor do
         {%{}, response_model}
       end
 
-    adapter().chat_completion(params, config)
+    adapter(config).chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
@@ -342,7 +343,7 @@ defmodule Instructor do
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_mode(mode, wrapped_model, params)
 
-    adapter().chat_completion(params, config)
+    adapter(config).chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
@@ -390,7 +391,7 @@ defmodule Instructor do
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_mode(mode, wrapped_model, params)
 
-    adapter().chat_completion(params, config)
+    adapter(config).chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Jaxon.Stream.from_enumerable()
     |> Jaxon.Stream.query([:root, "value", :all])
@@ -427,7 +428,7 @@ defmodule Instructor do
         {%{}, response_model}
       end
 
-    with {:llm, {:ok, response}} <- {:llm, adapter().chat_completion(params, config)},
+    with {:llm, {:ok, response}} <- {:llm, adapter(config).chat_completion(params, config)},
          {:valid_json, {:ok, params}} <- {:valid_json, parse_response_for_mode(mode, response)},
          changeset <- cast_all(model, params),
          {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
@@ -620,7 +621,6 @@ defmodule Instructor do
     end
   end
 
-  defp adapter() do
-    Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
-  end
+  defp adapter(%{adapter: adapter}) when is_atom(adapter), do: adapter
+  defp adapter(_), do: Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
 end
