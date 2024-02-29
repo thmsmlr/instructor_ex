@@ -11,7 +11,11 @@ Mix.install(
   config: [
     instructor: [
       adapter: Instructor.Adapters.OpenAI,
-      openai: [api_key: System.fetch_env!("LB_OPENAI_API_KEY")]
+      openai: [
+        api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
+        # https://github.com/wojtekmach/req/issues/309
+        http_options: [receive_timeout: 60_000, connect_options: [protocols: [:http2]]]
+      ]
     ]
   ]
 )
