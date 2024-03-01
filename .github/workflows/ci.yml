@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - thbar:setup-ci
 
 jobs:
   test:
