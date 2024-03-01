@@ -279,7 +279,7 @@ defmodule Instructor do
         {%{}, response_model}
       end
 
-    adapter(config).chat_completion(params, config)
+    adapter(params).chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
@@ -343,7 +343,7 @@ defmodule Instructor do
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_mode(mode, wrapped_model, params)
 
-    adapter(config).chat_completion(params, config)
+    adapter(params).chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
@@ -391,7 +391,7 @@ defmodule Instructor do
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_mode(mode, wrapped_model, params)
 
-    adapter(config).chat_completion(params, config)
+    adapter(params).chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Jaxon.Stream.from_enumerable()
     |> Jaxon.Stream.query([:root, "value", :all])
@@ -428,7 +428,7 @@ defmodule Instructor do
         {%{}, response_model}
       end
 
-    with {:llm, {:ok, response}} <- {:llm, adapter(config).chat_completion(params, config)},
+    with {:llm, {:ok, response}} <- {:llm, adapter(params).chat_completion(params, config)},
          {:valid_json, {:ok, params}} <- {:valid_json, parse_response_for_mode(mode, response)},
          changeset <- cast_all(model, params),
          {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
@@ -621,6 +621,11 @@ defmodule Instructor do
     end
   end
 
-  defp adapter(%{adapter: adapter}) when is_atom(adapter), do: adapter
-  defp adapter(_), do: Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+  defp adapter(params) do
+    Keyword.get(
+      params,
+      :adapter,
+      Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+    )
+  end
 end
