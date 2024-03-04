@@ -32,6 +32,7 @@ defmodule Instructor.Adapters.Llamacpp do
   """
   @impl true
   def chat_completion(params, _config \\ nil) do
+    {_, params} = Keyword.pop(params, :adapter)
     {response_model, _} = Keyword.pop!(params, :response_model)
     {messages, _} = Keyword.pop!(params, :messages)
 
