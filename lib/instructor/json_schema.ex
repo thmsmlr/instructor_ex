@@ -145,7 +145,7 @@ defmodule Instructor.JSONSchema do
         {field, for_type(type)}
       end
 
-    required = Map.keys(properties)
+    required = Map.keys(properties) |> Enum.sort()
 
     embedded_schemas =
       for {_field, {:parameterized, Ecto.Embedded, %Ecto.Embedded{related: related}}} <-
@@ -244,7 +244,7 @@ defmodule Instructor.JSONSchema do
         {field, for_type(type)}
       end
 
-    required = Map.keys(properties)
+    required = Map.keys(properties) |> Enum.sort()
 
     %{
       items: %{
@@ -272,7 +272,7 @@ defmodule Instructor.JSONSchema do
         {field, for_type(type)}
       end
 
-    required = Map.keys(properties)
+    required = Map.keys(properties) |> Enum.sort()
 
     %{
       type: "object",
