@@ -216,7 +216,10 @@ defmodule Instructor.JSONSchema do
   defp for_type(:decimal), do: %{type: "number", format: "float"}
   defp for_type(:date), do: %{type: "string", format: "date"}
   defp for_type(:time), do: %{type: "string", pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"}
-  defp for_type(:time_usec), do: %{type: "string", pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"}
+
+  defp for_type(:time_usec),
+    do: %{type: "string", pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"}
+
   defp for_type(:naive_datetime), do: %{type: "string", format: "date-time"}
   defp for_type(:naive_datetime_usec), do: %{type: "string", format: "date-time"}
   defp for_type(:utc_datetime), do: %{type: "string", format: "date-time"}

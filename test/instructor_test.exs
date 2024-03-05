@@ -37,7 +37,7 @@ defmodule InstructorTest do
   def mock_stream_response(_, _, _), do: nil
 
   for adapter <- [:openai_mock, :openai, :llamacpp] do
-  # for adapter <- [:openai] do
+    # for adapter <- [:openai] do
     describe "#{inspect(adapter)}" do
       @tag adapter: adapter
       test "schemaless ecto" do

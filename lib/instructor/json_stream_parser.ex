@@ -43,4 +43,3 @@ defmodule Instructor.JSONStreamParser do
     end)
   end
 end
-
