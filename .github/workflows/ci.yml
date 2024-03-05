@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - setup-ci
 
 jobs:
   test:
@@ -17,9 +16,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - pair:
-              elixir: "1.11"
-              otp: "21.3"
           - pair:
               elixir: "1.16"
               otp: "26.2"
