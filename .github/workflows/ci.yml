@@ -1,10 +1,7 @@
 name: CI
 
 on:
-  workflow_dispatch:
   pull_request:
-    types:
-      - *
   push:
     branches:
       - main
