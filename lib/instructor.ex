@@ -35,7 +35,7 @@ defmodule Instructor do
 
   ## Examples
 
-      iex> Instructor.chat_completion(%{
+      iex> Instructor.chat_completion(
       ...>   model: "gpt-3.5-turbo",
       ...>   response_model: Instructor.Demos.SpamPrediction,
       ...>   messages: [
@@ -43,7 +43,7 @@ defmodule Instructor do
       ...>       role: "user",
       ...>       content: "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
       ...>     }
-      ...> })
+      ...>   ])
       {:ok,
           %Instructor.Demos.SpamPrediction{
               class: :spam
@@ -55,7 +55,7 @@ defmodule Instructor do
 
   Partial streaming will emit the record multiple times until it's complete.
 
-      iex> Instructor.chat_completion(%{
+      iex> Instructor.chat_completion(
       ...>   model: "gpt-3.5-turbo",
       ...>   response_model: {:partial, %{name: :string, birth_date: :date}}
       ...>   messages: [
@@ -63,7 +63,7 @@ defmodule Instructor do
       ...>       role: "user",
       ...>       content: "Who is the first president of the United States?"
       ...>     }
-      ...> }) |> Enum.to_list()
+      ...>   ]) |> Enum.to_list()
       [
         {:partial, %{name: "George Washington"}},
         {:partial, %{name: "George Washington", birth_date: ~D[1732-02-22]}},
@@ -73,7 +73,7 @@ defmodule Instructor do
   Whereas with array streaming, you can ask the LLM to return multiple instances of your Ecto schema,
   and instructor will emit them one at a time as they arrive in complete form and validated.
 
-      iex> Instructor.chat_completion(%{
+      iex> Instructor.chat_completion(
       ...>   model: "gpt-3.5-turbo",
       ...>   response_model: {:array, %{name: :string, birth_date: :date}}
       ...>   messages: [
@@ -81,7 +81,7 @@ defmodule Instructor do
       ...>       role: "user",
       ...>       content: "Who are the first 5 presidents of the United States?"
       ...>     }
-      ...> }) |> Enum.to_list()
+      ...>   ]) |> Enum.to_list()
 
       [
         {:ok, %{name: "George Washington", birth_date: ~D[1732-02-22]}},
@@ -93,7 +93,7 @@ defmodule Instructor do
 
   If there's a validation error, it will return an error tuple with the change set describing the errors.
 
-      iex> Instructor.chat_completion(%{
+      iex> Instructor.chat_completion(
       ...>   model: "gpt-3.5-turbo",
       ...>   response_model: Instructor.Demos.SpamPrediction,
       ...>   messages: [
@@ -101,7 +101,7 @@ defmodule Instructor do
       ...>       role: "user",
       ...>       content: "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
       ...>     }
-      ...> })
+      ...>   ])
       {:error,
           %Ecto.Changeset{
               changes: %{
