@@ -108,6 +108,19 @@ def deps do
 end
 ```
 
+InstructorEx uses [Code.fetch_docs/1](https://hexdocs.pm/elixir/1.16.2/Code.html#fetch_docs/1) to fetch LLM instructions from the Ecto schema specified in `response_model`. If your project is deployed using [releases](https://hexdocs.pm/mix/Mix.Tasks.Release.html), add the following configuration to mix.exs to prevent docs from being stripped from the release:
+
+```elixir
+def project do
+  # ...
+  releases: [
+    myapp: [
+      strip_beams: [keep: ["Docs"]]
+    ]
+  ]
+end
+```
+
 ## TODO
 
 - [ ] llamacpp adapter broken, needs to support openai input/output API
