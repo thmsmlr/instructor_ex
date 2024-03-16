@@ -21,6 +21,9 @@ defmodule InstructorTest do
 
       :openai_mock ->
         Application.put_env(:instructor, :adapter, InstructorTest.MockOpenAI)
+
+      :custom ->
+        :ok
     end
   end
 
@@ -37,7 +40,6 @@ defmodule InstructorTest do
   def mock_stream_response(_, _, _), do: nil
 
   for adapter <- [:openai_mock, :openai, :llamacpp] do
-    # for adapter <- [:openai] do
     describe "#{inspect(adapter)}" do
       @tag adapter: adapter
       test "schemaless ecto" do
@@ -295,6 +297,51 @@ defmodule InstructorTest do
         assert [ok: %President{}, ok: %President{}] = seventh
       end
     end
+  end
+
+  defmodule CustomAdapter do
+    @behaviour Instructor.Adapter
+
+    @impl true
+    def chat_completion(_params, _config) do
+      {:ok,
+       %{
+         "choices" => [
+           %{
+             "message" => %{
+               "tool_calls" => [
+                 %{
+                   "function" => %{
+                     "arguments" =>
+                       Jason.encode!(%{
+                         "name" => "George Washington",
+                         "birth_date" => "1732-02-22"
+                       })
+                   }
+                 }
+               ]
+             }
+           }
+         ]
+       }}
+    end
+  end
+
+  @tag adapter: :custom
+  test "adapter defined at runtime" do
+    result =
+      Instructor.chat_completion(
+        adapter: CustomAdapter,
+        model: "gpt-3.5-turbo",
+        response_model: %{name: :string, birth_date: :date},
+        messages: [
+          %{role: "user", content: "Who was the first president of the USA?"}
+        ]
+      )
+
+    assert {:ok, %{name: name, birth_date: birth_date}} = result
+    assert is_binary(name)
+    assert %Date{} = birth_date
   end
 
   defmodule QuestionAnswer do
