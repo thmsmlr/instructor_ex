@@ -21,14 +21,14 @@ defmodule Instructor.Adapters.Llamacpp do
 
   ## Examples
 
-    iex> Instructor.chat_completion(%{
+    iex> Instructor.chat_completion(
     ...>   model: "mistral-7b-instruct",
     ...>   messages: [
     ...>     %{ role: "user", content: "Classify the following text: Hello I am a Nigerian prince and I would like to send you money!" },
     ...>   ],
     ...>   response_model: response_model,
     ...>   temperature: 0.5,
-    ...> })
+    ...> )
   """
   @impl true
   def chat_completion(params, _config \\ nil) do
