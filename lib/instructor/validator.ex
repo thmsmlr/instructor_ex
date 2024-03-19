@@ -22,7 +22,7 @@ defmodule Instructor.Validator do
       end
     end
 
-    iex> Instructor.chat_completion(%{
+    iex> Instructor.chat_completion(
     ...>   model: "gpt-3.5-turbo",
     ...>   response_model: Instructor.Demos.SpamPrediction,
     ...>   max_retries: 1,
@@ -31,7 +31,7 @@ defmodule Instructor.Validator do
     ...>       role: "user",
     ...>       content: "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
     ...>     }
-    ...> })
+    ...>   ])
     {:error, %Ecto.Changeset{
         action: nil,
         changes: %{},

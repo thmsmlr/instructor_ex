@@ -4,4 +4,3 @@ Mox.defmock(InstructorTest.MockOpenAI, for: Instructor.Adapter)
 ExUnit.configure(exclude: [adapter: :llamacpp, adapter: :openai])
 
 ExUnit.start()
-

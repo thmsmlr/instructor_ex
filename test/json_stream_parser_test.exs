@@ -64,20 +64,19 @@ defmodule JSONStreamParserTest do
   end
 
   test "The big test" do
-    result = 
-      %{ "foo" => [%{"bar" => "baz"}, %{"qux" => "quux"}] }
+    result =
+      %{"foo" => [%{"bar" => "baz"}, %{"qux" => "quux"}]}
       |> chunkify()
       |> JSONStreamParser.parse()
       |> Enum.to_list()
 
     assert [
-              %{},
-              %{"foo" => []},
-              %{"foo" => [%{}]},
-              %{"foo" => [%{"bar" => "baz"}]},
-              %{"foo" => [%{"bar" => "baz"}, %{}]},
-              %{"foo" => [%{"bar" => "baz"}, %{"qux" => "quux"}]}
-            ] = result
-  
+             %{},
+             %{"foo" => []},
+             %{"foo" => [%{}]},
+             %{"foo" => [%{"bar" => "baz"}]},
+             %{"foo" => [%{"bar" => "baz"}, %{}]},
+             %{"foo" => [%{"bar" => "baz"}, %{"qux" => "quux"}]}
+           ] = result
   end
 end
