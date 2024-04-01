@@ -40,7 +40,7 @@ defmodule Politician do
   - offices_held:
     - office: The branch and position in government they served in
     - from_date: When they entered office or null
-    - until_date: The date they left office or null
+    - to_date: The date they left office or null
   """
   @primary_key false
   embedded_schema do
