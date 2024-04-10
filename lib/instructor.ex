@@ -481,17 +481,24 @@ defmodule Instructor do
   end
 
   defp parse_response_for_mode(:md_json, %{"choices" => [%{"message" => %{"content" => content}}]}),
-       do: Jason.decode(content)
+    do: Jason.decode(content |> clean_up_for_json_decoding() |> IO.inspect())
 
   defp parse_response_for_mode(:json, %{"choices" => [%{"message" => %{"content" => content}}]}),
-    do: Jason.decode(content)
+    do: Jason.decode(clean_up_for_json_decoding(content))
 
   defp parse_response_for_mode(:tools, %{
          "choices" => [
            %{"message" => %{"tool_calls" => [%{"function" => %{"arguments" => args}}]}}
          ]
        }),
-       do: Jason.decode(args)
+       do: Jason.decode(clean_up_for_json_decoding(args))
+
+  defp clean_up_for_json_decoding(string),
+    do:
+      string
+      |> String.replace("\n", "")
+      |> String.replace("```json", "")
+      |> String.replace("```", "")
 
   defp parse_stream_chunk_for_mode(:md_json, %{"choices" => [%{"delta" => %{"content" => chunk}}]}),
        do: chunk
@@ -621,6 +628,10 @@ defmodule Instructor do
     end
   end
 
-  defp adapter(%{adapter: adapter}) when is_atom(adapter), do: adapter
-  defp adapter(_), do: Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+  defp adapter(config),
+    do:
+      if(config[:adapter],
+        do: config[:adapter],
+        else: Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+      )
 end
