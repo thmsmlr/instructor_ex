@@ -49,9 +49,8 @@ end
 
 {:ok, result} =
   Instructor.chat_completion(
-    model: "gpt-4-vision-preview",
+    model: "gpt-4-turbo",
     response_model: Product,
-    mode: :md_json,
     messages: [
       %{
         role: "user",
@@ -60,8 +59,7 @@ end
           %{type: "image_url", image_url: %{url: base64_image, detail: "high"}}
         ]
       }
-    ],
-    max_tokens: 1800
+    ]
   )
 
 result
@@ -78,4 +76,4 @@ result
 }
 ```
 
-<!-- livebook:{"offset":2014,"stamp":{"token":"XCP.cvfLZ4_ukILFG5Me7moeIt2yRSKSHOHEZM34roQzo-qC3Rf8l91bu4eIn8ykeusAuMoNq6D2TdCyzU0e8c99eoXrBMzNnyVnW2F41geUrriUJ2JN6VtKPgw","version":2}} -->
+<!-- livebook:{"offset":2123,"stamp":{"token":"XCP.TJRK8paQeu1WL9g-_BJm92kPTB7-zDXJBjLuEZYPKhqeRuXYC7N5dIgNMuhRkNu9-AkJ6VOqqTArCyM8ZdCeCec43zWdQMybwSDvuhO4X249KOG4jVW99KY","version":2}} -->
