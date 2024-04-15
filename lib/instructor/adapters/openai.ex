@@ -37,7 +37,6 @@ defmodule Instructor.Adapters.OpenAI do
               json: params,
               auth: {:bearer, api_key(config)},
               into: fn {:data, data}, {req, resp} ->
-
                 if inspect_response? do
                   IO.inspect(data, pretty: true, limit: :infinity, printable_limit: :infinity)
                 end

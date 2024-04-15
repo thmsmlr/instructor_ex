@@ -68,6 +68,7 @@ defmodule Instructor.Adapters.Llamacpp do
                 if inspect_response? do
                   IO.inspect(data, pretty: true, limit: :infinity, printable_limit: :infinity)
                 end
+
                 send(pid, data)
                 {:cont, {req, resp}}
               end
