@@ -13,17 +13,19 @@ defmodule Instructor.Adapters.OpenAI do
     {_, params} = Keyword.pop(params, :validation_context)
     {_, params} = Keyword.pop(params, :max_retries)
     {_, params} = Keyword.pop(params, :mode)
+    {inspect_request?, params} = Keyword.pop(params, :inspect_request?)
+    {inspect_response?, params} = Keyword.pop(params, :inspect_response?)
     stream = Keyword.get(params, :stream, false)
     params = Enum.into(params, %{})
 
     if stream do
-      do_streaming_chat_completion(params, config)
+      do_streaming_chat_completion(params, config, inspect_request?, inspect_response?)
     else
-      do_chat_completion(params, config)
+      do_chat_completion(params, config, inspect_request?, inspect_response?)
     end
   end
 
-  defp do_streaming_chat_completion(params, config) do
+  defp do_streaming_chat_completion(params, config, inspect_request?, inspect_response?) do
     pid = self()
     options = http_options(config)
 
@@ -35,6 +37,11 @@ defmodule Instructor.Adapters.OpenAI do
               json: params,
               auth: {:bearer, api_key(config)},
               into: fn {:data, data}, {req, resp} ->
+
+                if inspect_response? do
+                  IO.inspect(data, pretty: true, limit: :infinity, printable_limit: :infinity)
+                end
+
                 chunks =
                   data
                   |> String.split("\n")
@@ -55,7 +62,13 @@ defmodule Instructor.Adapters.OpenAI do
               end
             )
 
-          Req.post!(url(config), options)
+          req = Req.new([url: url(config)] ++ options)
+
+          if inspect_request? do
+            IO.inspect(req, pretty: true, limit: :infinity, printable_limit: :infinity)
+          end
+
+          Req.post!(req)
           send(pid, :done)
         end)
       end,
@@ -75,9 +88,19 @@ defmodule Instructor.Adapters.OpenAI do
     )
   end
 
-  defp do_chat_completion(params, config) do
+  defp do_chat_completion(params, config, inspect_request?, inspect_response?) do
     options = Keyword.merge(http_options(config), json: params, auth: {:bearer, api_key(config)})
-    response = Req.post!(url(config), options)
+    req = Req.new([url: url(config)] ++ options)
+
+    if inspect_request? do
+      IO.inspect(req, pretty: true, limit: :infinity, printable_limit: :infinity)
+    end
+
+    response = Req.post!(req)
+
+    if inspect_response? do
+      IO.inspect(response, pretty: true, limit: :infinity, printable_limit: :infinity)
+    end
 
     case response.status do
       200 -> {:ok, response.body}
