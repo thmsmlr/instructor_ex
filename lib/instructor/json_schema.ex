@@ -49,8 +49,7 @@ defmodule Instructor.JSONSchema do
   end
 
   defp fetch_ecto_schema_doc(ecto_schema) when is_ecto_schema(ecto_schema) do
-    title = title_for(ecto_schema)
-    ecto_schema_struct_literal = "%#{title}{}"
+    ecto_schema_struct_literal = "%#{title_for(ecto_schema)}{}"
 
     case Code.fetch_docs(ecto_schema) do
       {_, _, _, _, _, _, docs} ->
@@ -65,7 +64,7 @@ defmodule Instructor.JSONSchema do
 
       {:error, reason} ->
         Logger.warning(
-          "Error fetching documentation for #{title}. The JSON schema for this model might be incomplete.\n#{inspect(reason)}"
+          "Error fetching documentation for #{ecto_schema}. The JSON schema for this model might be incomplete.\n#{inspect(reason)}"
         )
 
         nil
