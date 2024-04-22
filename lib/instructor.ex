@@ -32,8 +32,8 @@ defmodule Instructor do
     * `:mode` - The mode to use when parsing the response, :tools, :json, :md_json (defaults to `:tools`), generally speaking you don't need to change this unless you are not using OpenAI.
     * `:max_retries` - The maximum number of times to retry the LLM call if it fails, or does not pass validations.
                        (defaults to `0`)
-    * `:inspect_request?` -`IO.inspect` the request before sending to the LLM, useful for debugging (defaults to `false`).
-    * `:inspect_response?` -`IO.inspect` the response from the LLM before processing, useful for debugging (defaults to `false`).
+    * `:before_request` - An optional callback function, to run just before passing a request to the LLM, useful for debugging.
+    * `:after_response` - An optional callback function to run after receiving a response from the LLM, and before processing the response, useful for debugging.
 
   ## Examples
 

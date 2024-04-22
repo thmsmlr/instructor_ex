@@ -34,8 +34,8 @@ defmodule Instructor.Adapters.Llamacpp do
   def chat_completion(params, _config \\ nil) do
     {response_model, _} = Keyword.pop!(params, :response_model)
     {messages, _} = Keyword.pop!(params, :messages)
-    {inspect_request?, params} = Keyword.pop(params, :inspect_request?)
-    {inspect_response?, params} = Keyword.pop(params, :inspect_response?)
+    {before_request, params} = Keyword.pop(params, :before_request)
+    {after_response, params} = Keyword.pop(params, :after_response)
 
     json_schema = JSONSchema.from_ecto_schema(response_model)
     grammar = GBNF.from_json_schema(json_schema)
@@ -43,13 +43,13 @@ defmodule Instructor.Adapters.Llamacpp do
     stream = Keyword.get(params, :stream, false)
 
     if stream do
-      do_streaming_chat_completion(prompt, grammar, inspect_request?, inspect_response?)
+      do_streaming_chat_completion(prompt, grammar, before_request, after_response)
     else
-      do_chat_completion(prompt, grammar, inspect_request?, inspect_response?)
+      do_chat_completion(prompt, grammar, before_request, after_response)
     end
   end
 
-  defp do_streaming_chat_completion(prompt, grammar, inspect_request?, inspect_response?) do
+  defp do_streaming_chat_completion(prompt, grammar, before_request, after_response) do
     pid = self()
 
     Stream.resource(
@@ -65,8 +65,8 @@ defmodule Instructor.Adapters.Llamacpp do
               },
               receive_timeout: 60_000,
               into: fn {:data, data}, {req, resp} ->
-                if inspect_response? do
-                  IO.inspect(data, pretty: true, limit: :infinity, printable_limit: :infinity)
+                if is_function(after_response) do
+                  after_response.({{:data, data}, {req, resp}})
                 end
 
                 send(pid, data)
@@ -74,8 +74,8 @@ defmodule Instructor.Adapters.Llamacpp do
               end
             )
 
-          if inspect_request? do
-            IO.inspect(req, pretty: true, limit: :infinity, printable_limit: :infinity)
+          if is_function(before_request) do
+            before_request.(req)
           end
 
           Req.post!(req)
@@ -107,7 +107,7 @@ defmodule Instructor.Adapters.Llamacpp do
     }
   end
 
-  defp do_chat_completion(prompt, grammar, inspect_request?, inspect_response?) do
+  defp do_chat_completion(prompt, grammar, before_request, after_response) do
     req =
       Req.new(
         url: url(),
@@ -118,14 +118,14 @@ defmodule Instructor.Adapters.Llamacpp do
         receive_timeout: 60_000
       )
 
-    if inspect_request? do
-      IO.inspect(req, pretty: true, limit: :infinity, printable_limit: :infinity)
+    if is_function(before_request) do
+      before_request.(req)
     end
 
     response = Req.post!(req)
 
-    if inspect_response? do
-      IO.inspect(response, pretty: true, limit: :infinity, printable_limit: :infinity)
+    if is_function(after_response) do
+      after_response.(response)
     end
 
     case response do

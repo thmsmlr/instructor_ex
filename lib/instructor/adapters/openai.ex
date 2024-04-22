@@ -13,19 +13,19 @@ defmodule Instructor.Adapters.OpenAI do
     {_, params} = Keyword.pop(params, :validation_context)
     {_, params} = Keyword.pop(params, :max_retries)
     {_, params} = Keyword.pop(params, :mode)
-    {inspect_request?, params} = Keyword.pop(params, :inspect_request?)
-    {inspect_response?, params} = Keyword.pop(params, :inspect_response?)
+    {before_request, params} = Keyword.pop(params, :before_request)
+    {after_response, params} = Keyword.pop(params, :after_response)
     stream = Keyword.get(params, :stream, false)
     params = Enum.into(params, %{})
 
     if stream do
-      do_streaming_chat_completion(params, config, inspect_request?, inspect_response?)
+      do_streaming_chat_completion(params, config, before_request, after_response)
     else
-      do_chat_completion(params, config, inspect_request?, inspect_response?)
+      do_chat_completion(params, config, before_request, after_response)
     end
   end
 
-  defp do_streaming_chat_completion(params, config, inspect_request?, inspect_response?) do
+  defp do_streaming_chat_completion(params, config, before_request, after_response) do
     pid = self()
     options = http_options(config)
 
@@ -37,8 +37,8 @@ defmodule Instructor.Adapters.OpenAI do
               json: params,
               auth: {:bearer, api_key(config)},
               into: fn {:data, data}, {req, resp} ->
-                if inspect_response? do
-                  IO.inspect(data, pretty: true, limit: :infinity, printable_limit: :infinity)
+                if is_function(after_response) do
+                  after_response.({{:data, data}, {req, resp}})
                 end
 
                 chunks =
@@ -63,8 +63,8 @@ defmodule Instructor.Adapters.OpenAI do
 
           req = Req.new([url: url(config)] ++ options)
 
-          if inspect_request? do
-            IO.inspect(req, pretty: true, limit: :infinity, printable_limit: :infinity)
+          if is_function(before_request) do
+            before_request.(req)
           end
 
           Req.post!(req)
@@ -87,18 +87,18 @@ defmodule Instructor.Adapters.OpenAI do
     )
   end
 
-  defp do_chat_completion(params, config, inspect_request?, inspect_response?) do
+  defp do_chat_completion(params, config, before_request, after_response) do
     options = Keyword.merge(http_options(config), json: params, auth: {:bearer, api_key(config)})
     req = Req.new([url: url(config)] ++ options)
 
-    if inspect_request? do
-      IO.inspect(req, pretty: true, limit: :infinity, printable_limit: :infinity)
+    if is_function(before_request) do
+      before_request.(req)
     end
 
     response = Req.post!(req)
 
-    if inspect_response? do
-      IO.inspect(response, pretty: true, limit: :infinity, printable_limit: :infinity)
+    if is_function(after_response) do
+      after_response.(response)
     end
 
     case response.status do
