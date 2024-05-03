@@ -436,10 +436,10 @@ defmodule Instructor do
       {:ok, changeset |> Ecto.Changeset.apply_changes()}
     else
       {:llm, {:error, error}} ->
-        {:error, "LLM Adapter Error: #{inspect(error)}"}
+        {:error, :adapter_error, error}
 
       {:valid_json, {:error, error}} ->
-        {:error, "Invalid JSON returned from LLM: #{inspect(error)}"}
+        {:error, :invalid_json, error}
 
       {:validation, changeset, response} ->
         if max_retries > 0 do
