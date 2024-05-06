@@ -33,7 +33,6 @@ defmodule Instructor.Adapters.OpenAI do
           options =
             Keyword.merge(options,
               json: params,
-              auth: {:bearer, api_key(config)},
               into: fn {:data, data}, {req, resp} ->
                 chunks =
                   data
@@ -54,6 +53,7 @@ defmodule Instructor.Adapters.OpenAI do
                 {:cont, {req, resp}}
               end
             )
+            |> Keyword.merge(auth_options(config))
 
           Req.post!(url(config), options)
           send(pid, :done)
@@ -76,7 +76,10 @@ defmodule Instructor.Adapters.OpenAI do
   end
 
   defp do_chat_completion(params, config) do
-    options = Keyword.merge(http_options(config), json: params, auth: {:bearer, api_key(config)})
+    options =
+      Keyword.merge(http_options(config), json: params)
+      |> Keyword.merge(auth_options(config))
+
     response = Req.post!(url(config), options)
 
     case response.status do
@@ -85,8 +88,22 @@ defmodule Instructor.Adapters.OpenAI do
     end
   end
 
-  defp url(config), do: api_url(config) <> "/v1/chat/completions"
+  defp auth_options(config) do
+    case Keyword.fetch!(config, :auth_mode) do
+      :bearer ->
+        [auth: {:bearer, api_key(config)}]
+
+      :api_key ->
+        [headers: %{"api-key" => api_key(config)}]
+
+      auth_mode ->
+        raise ArgumentError, "Expected one of (:beader, :api_key), got: #{inspect(auth_mode)}"
+    end
+  end
+
+  defp url(config), do: URI.merge(api_url(config), api_path(config)) |> URI.to_string()
   defp api_url(config), do: Keyword.fetch!(config, :api_url)
+  defp api_path(config), do: Keyword.fetch!(config, :api_path)
   defp api_key(config), do: Keyword.fetch!(config, :api_key)
   defp http_options(config), do: Keyword.fetch!(config, :http_options)
 
@@ -95,6 +112,8 @@ defmodule Instructor.Adapters.OpenAI do
 
     default_config = [
       api_url: "https://api.openai.com",
+      api_path: "/v1/chat/completions",
+      auth_mode: :bearer,
       http_options: [receive_timeout: 60_000]
     ]
 
