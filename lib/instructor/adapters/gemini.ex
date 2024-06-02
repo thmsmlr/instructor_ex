@@ -2,6 +2,23 @@ defmodule Instructor.Adapters.Gemini do
   @moduledoc """
   Google Gemini adapter
 
+  ## Configuration
+
+  Accepts the following configuration options either from your `Application` environment or as a param:
+
+  - `:api_version`: Gemini has a `v1` and a `v1beta` API. Defaults to `:v1``
+  - `:api_url`: Base URL for the Gemini API. Defaults to `"https://generativelanguage.googleapis.com/"`
+
+  Additionally, the Gemini API accepts a `GenerationConfig` to change the model's behaviors. This adapter
+  will perform the following transformations from OpenAI styled arguemnts
+  (see https://ai.google.dev/api/rest/v1/GenerationConfig for Google's API):
+
+  - `:stop` -> `stopSequences`
+  - `:n` -> `candidateCount`
+  -  :max_tokens` -> `maxOutputToken`
+  - `:top_k` -> `topK`
+  - `:top_p` -> `topP`
+
   ## Resources
 
   - [Tutorial: Getting Started with the Gemini API](https://ai.google.dev/gemini-api/docs/get-started/tutorial?lang=rest)
@@ -32,23 +49,11 @@ defmodule Instructor.Adapters.Gemini do
       )
 
   @doc """
-  Run a completion against the llama.cpp server, not the open-ai compliant one.
-  This gives you more specific control over the grammar, and the ability to
-  provide other parameters to the specific LLM invocation.
+  Run a completion against Google's Gemini API
 
-  You can read more about the parameters here:
-    https://github.com/ggerganov/llama.cpp/tree/master/examples/server
+  Accepts OpenAI API arguments and converts to Gemini Args to perform the completion.
 
-  ## Examples
-
-    iex> Instructor.chat_completion(
-    ...>   model: "mistral-7b-instruct",
-    ...>   messages: [
-    ...>     %{ role: "user", content: "Classify the following text: Hello I am a Nigerian prince and I would like to send you money!" },
-    ...>   ],
-    ...>   response_model: response_model,
-    ...>   temperature: 0.5,
-    ...> )
+  Defaults to JSON mode within the Gemini API
   """
   @impl true
   def chat_completion(params, config \\ nil) do
@@ -77,7 +82,7 @@ defmodule Instructor.Adapters.Gemini do
     {_, params} = Keyword.pop(params, :validation_context)
     {_, params} = Keyword.pop(params, :adapter)
     {_, params} = Keyword.pop(params, :response_format)
-    {max_retries, params} = Keyword.pop(params, :max_retries)
+    {_, params} = Keyword.pop(params, :max_retries)
     {mode, params} = Keyword.pop(params, :mode, :json)
     {messages, params} = Keyword.pop!(params, :messages)
     messages = to_gemini_messages(messages)
@@ -223,12 +228,10 @@ defmodule Instructor.Adapters.Gemini do
   end
 
   defp to_openai_response(<<"```json", _rest::binary>> = params) do
-    params =
-      params
-      |> String.trim_leading("```json\n")
-      |> String.trim_trailing("\n```")
-
-    to_openai_response(params)
+    params
+    |> String.trim_leading("```json\n")
+    |> String.trim_trailing("\n```")
+    |> to_openai_response()
   end
 
   defp to_openai_response(params) do
