@@ -25,6 +25,7 @@ defmodule Instructor.Adapters.Gemini do
   - [Tutorial: Getting Started with the Gemini API](https://ai.google.dev/gemini-api/docs/get-started/tutorial?lang=rest)
   - [Gemini API Overview](https://ai.google.dev/gemini-api/docs/api-overview)
   - [Gemini REST API Reference](https://ai.google.dev/api/rest)
+  - [Gemini API: JSON Mode Quickstart with REST](https://github.com/google-gemini/cookbook/blob/main/quickstarts/rest/JSON_mode_REST.ipynb)
   """
   alias Instructor.JSONSchema
 
@@ -102,7 +103,6 @@ defmodule Instructor.Adapters.Gemini do
       else
         generationConfig
       end
-      |> dbg()
 
     params = Keyword.put(params, :generationConfig, generationConfig)
 
@@ -230,7 +230,6 @@ defmodule Instructor.Adapters.Gemini do
       _ ->
         {:error, "Unknown error occurred"}
     end
-    |> dbg()
   end
 
   defp to_openai_response(<<"```json", _rest::binary>> = params) do
