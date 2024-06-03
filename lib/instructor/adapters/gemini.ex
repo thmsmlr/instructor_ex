@@ -87,8 +87,7 @@ defmodule Instructor.Adapters.Gemini do
     {_, params} = Keyword.pop(params, :max_retries)
     {mode, params} = Keyword.pop(params, :mode, :json)
     {messages, params} = Keyword.pop!(params, :messages)
-    messages = to_gemini_messages(messages)
-    params = Keyword.put(params, :contents, messages)
+    params = params ++ to_gemini_params(messages)
 
     generationConfig =
       if mode == :json do
@@ -168,12 +167,24 @@ defmodule Instructor.Adapters.Gemini do
     )
   end
 
-  defp to_gemini_messages(messages) do
-    messages
-    |> Enum.map(fn %{role: role, content: content} ->
-      role = if role == "system", do: "model", else: role
-      %{role: role, parts: [%{text: content}]}
-    end)
+  defp to_gemini_params(messages) do
+    {systemInstruction, contents} =
+      messages
+      |> Enum.reduce({%{role: "system", parts: []}, []}, fn
+        %{role: "assistant", content: content}, {system_instructions, history} ->
+          {system_instructions, [%{role: "model", parts: [%{text: content}]} | history]}
+
+        %{role: "user", content: content}, {system_instructions, history} ->
+          {system_instructions, [%{role: "user", parts: [%{text: content}]} | history]}
+
+        %{role: "system", content: content}, {system_instructions, history} ->
+          part = %{text: content}
+          {Map.update!(system_instructions, :parts, fn parts -> [part | parts] end), history}
+      end)
+
+    systemInstruction = Map.update!(systemInstruction, :parts, &Enum.reverse/1)
+    contents = Enum.reverse(contents)
+    [systemInstruction: systemInstruction, contents: contents]
   end
 
   defp to_openai_streaming_response(chunk) when is_binary(chunk) do
