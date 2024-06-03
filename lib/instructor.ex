@@ -624,6 +624,14 @@ defmodule Instructor do
     end
   end
 
+  defp adapter(config) when is_list(config) do
+    Keyword.get(
+      config,
+      :adapter,
+      Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+    )
+  end
+
   defp adapter(%{adapter: adapter}) when is_atom(adapter), do: adapter
   defp adapter(_), do: Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
 end

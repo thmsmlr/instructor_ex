@@ -6,12 +6,13 @@ defmodule Instructor.Adapters.Gemini do
 
   Accepts the following configuration options either from your `Application` environment or as a param:
 
-  - `:api_version`: Gemini has a `v1` and a `v1beta` API. Defaults to `:v1``
+  - `:api_version`: Gemini has a `v1` and a `v1beta` API. Defaults to `v1beta`. The `v1` API does
+     not support JSON mode, so if you use `v1` you cannot use `mode: :json` (which is the default mode).
   - `:api_url`: Base URL for the Gemini API. Defaults to `"https://generativelanguage.googleapis.com/"`
 
   Additionally, the Gemini API accepts a `GenerationConfig` to change the model's behaviors. This adapter
   will perform the following transformations from OpenAI styled arguemnts
-  (see https://ai.google.dev/api/rest/v1/GenerationConfig for Google's API):
+  (see https://ai.google.dev/api/rest/v1beta/GenerationConfig for Google's API):
 
   - `:stop` -> `stopSequences`
   - `:n` -> `candidateCount`
@@ -78,7 +79,7 @@ defmodule Instructor.Adapters.Gemini do
           {Atom.to_string(other_key) |> snake_to_camel(), value}
       end)
 
-    {response_model, params} = Keyword.pop(params, :response_model)
+    {_response_model, params} = Keyword.pop(params, :response_model)
     {_, params} = Keyword.pop(params, :validation_context)
     {_, params} = Keyword.pop(params, :adapter)
     {_, params} = Keyword.pop(params, :response_format)
@@ -91,14 +92,19 @@ defmodule Instructor.Adapters.Gemini do
     generationConfig =
       if mode == :json do
         Map.merge(generationConfig, %{
-          "responseMimeType" => "application/json",
-          "responseSchema" => JSONSchema.from_ecto_schema(response_model)
+          "responseMimeType" => "application/json"
+          # This should work according to the docs but it didn't work initially when trying to add.
+          # Also, the cookboox example doesn't use this config arg for JSON output, AND Instructor
+          # already prepends the schema as a system instruction.
+          # Docs are here:
+          # "responseSchema" => JSONSchema.from_ecto_schema(response_model)
         })
       else
         generationConfig
       end
+      |> dbg()
 
-    Keyword.put(params, :generationConfig, generationConfig)
+    params = Keyword.put(params, :generationConfig, generationConfig)
 
     stream = Keyword.get(params, :stream, false)
     params = Enum.into(params, %{})
@@ -262,7 +268,7 @@ defmodule Instructor.Adapters.Gemini do
     base_config = Application.get_env(:instructor, :gemini, [])
 
     default_config = [
-      api_version: :v1,
+      api_version: :v1beta,
       api_url: "https://generativelanguage.googleapis.com/",
       http_options: [receive_timeout: 60_000]
     ]
