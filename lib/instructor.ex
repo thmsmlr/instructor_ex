@@ -115,7 +115,7 @@ defmodule Instructor do
           }}
   """
   @spec chat_completion(Keyword.t(), any()) ::
-          {:ok, Ecto.Schema.t()}
+          {:ok, Ecto.Schema.t(), map() | nil} # the third argument represents the json output for token usage stats, which is now optional
           | {:error, Ecto.Changeset.t()}
           | {:error, String.t()}
           | Stream.t()
@@ -433,7 +433,7 @@ defmodule Instructor do
          changeset <- cast_all(model, params),
          {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
            {:validation, call_validate(response_model, changeset, validation_context), response} do
-      {:ok, changeset |> Ecto.Changeset.apply_changes()}
+      {:ok, changeset |> Ecto.Changeset.apply_changes(), response["usage"] || %{}}
     else
       {:llm, {:error, error}} ->
         {:error, "LLM Adapter Error: #{inspect(error)}"}

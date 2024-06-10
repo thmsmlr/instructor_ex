@@ -53,7 +53,7 @@ defmodule InstructorTest do
             ]
           )
 
-        assert {:ok, %{name: name, birth_date: birth_date}} = result
+        assert {:ok, %{name: name, birth_date: birth_date}, _usage} = result
         assert is_binary(name)
         assert %Date{} = birth_date
       end
@@ -86,7 +86,7 @@ defmodule InstructorTest do
             ]
           )
 
-        assert {:ok, %SpamPrediction{class: :spam, score: score}} = result
+        assert {:ok, %SpamPrediction{class: :spam, score: score}, _usage} = result
         assert is_float(score)
       end
 
@@ -170,7 +170,7 @@ defmodule InstructorTest do
                   naive_datetime_usec: naive_datetime_usec,
                   utc_datetime: utc_datetime,
                   utc_datetime_usec: utc_datetime_usec
-                }} = result
+                }, _usage} = result
 
         assert is_binary(binary_id)
         assert is_integer(integer)
@@ -373,7 +373,7 @@ defmodule InstructorTest do
         ]
       )
 
-    assert {:ok, %{field: "foobar"}} = result
+    assert {:ok, %{field: "foobar"}, _usage} = result
   end
 
   for mode <- [:tools, :json, :md_json] do
@@ -392,7 +392,7 @@ defmodule InstructorTest do
           ]
         )
 
-      assert {:ok, %{name: "Thomas"}} = result
+      assert {:ok, %{name: "Thomas"}, _usage} = result
     end
 
     @tag adapter: :openai_mock

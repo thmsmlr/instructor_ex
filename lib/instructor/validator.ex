@@ -96,7 +96,7 @@ defmodule Instructor.Validator do
   """
   def validate_with_llm(changeset, field, statement, opts \\ []) do
     Ecto.Changeset.validate_change(changeset, field, fn field, value ->
-      {:ok, response} =
+      {:ok, response, _usage} =
         Instructor.chat_completion(
           model: Keyword.get(opts, :model, "gpt-3.5-turbo"),
           temperature: Keyword.get(opts, :temperature, 0),
