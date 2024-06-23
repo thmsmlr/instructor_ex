@@ -436,15 +436,16 @@ defmodule Instructor do
       {:ok, changeset |> Ecto.Changeset.apply_changes()}
     else
       {:llm, {:error, error}} ->
-        {:error, "LLM Adapter Error: #{inspect(error)}"}
+        {:error, :adapter_error, error}
 
       {:valid_json, {:error, error}} ->
         # pass the error as it is to the user consuming API
         # one complex use case is 
         # -> you might want to reformat the json data from a different model via another API call. 
         # So, a smaller model like claude-haiku for subsequent LLM call
+        # https://github.com/thmsmlr/instructor_ex/pull/55/files
         Logger.error(error: "Invalid JSON returned from LLM: #{inspect(error)}")
-        {:error, error}
+        {:error, :invalid_json, error}
 
       {:validation, changeset, response} ->
         if max_retries > 0 do
