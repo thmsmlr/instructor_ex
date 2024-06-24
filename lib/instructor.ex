@@ -533,6 +533,8 @@ defmodule Instructor do
     ]
   end
 
+  defp echo_response(_), do: []
+
   defp params_for_mode(mode, response_model, params) do
     json_schema = JSONSchema.from_ecto_schema(response_model)
 
@@ -620,6 +622,14 @@ defmodule Instructor do
       true ->
         changeset
     end
+  end
+
+  defp adapter(config) when is_list(config) do
+    Keyword.get(
+      config,
+      :adapter,
+      Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+    )
   end
 
   defp adapter(%{adapter: adapter}) when is_atom(adapter), do: adapter
