@@ -125,21 +125,17 @@ defmodule Instructor.Adapters.Anthropic do
     final_massage_into_openai_response("")
   end
 
-  def to_openai_streaming_response(
-        %{
-          "type" => "content_block_start",
-          "content_block" => %{"type" => "text", "text" => returned_text}
-        }
-      ) do
+  def to_openai_streaming_response(%{
+        "type" => "content_block_start",
+        "content_block" => %{"type" => "text", "text" => returned_text}
+      }) do
     final_massage_into_openai_response(returned_text)
   end
 
-  def to_openai_streaming_response(
-        %{
-          "type" => "content_block_delta",
-          "delta" => %{"type" => "text_delta", "text" => returned_text}
-        }
-      ) do
+  def to_openai_streaming_response(%{
+        "type" => "content_block_delta",
+        "delta" => %{"type" => "text_delta", "text" => returned_text}
+      }) do
     final_massage_into_openai_response(returned_text)
   end
 
