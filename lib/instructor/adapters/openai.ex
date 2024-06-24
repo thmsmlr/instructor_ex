@@ -55,7 +55,7 @@ defmodule Instructor.Adapters.OpenAI do
               end
             )
 
-          Req.post!(url(config), options)
+          Req.post(url(config), options)
           send(pid, :done)
         end)
       end,
@@ -77,11 +77,11 @@ defmodule Instructor.Adapters.OpenAI do
 
   defp do_chat_completion(params, config) do
     options = Keyword.merge(http_options(config), json: params, auth: {:bearer, api_key(config)})
-    response = Req.post!(url(config), options)
 
-    case response.status do
-      200 -> {:ok, response.body}
-      _ -> {:error, response.body}
+    case Req.post(url(config), options) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: status}} -> {:error, "Unexpected HTTP response code: #{status}"}
+      {:error, reason} -> {:error, reason}
     end
   end
 

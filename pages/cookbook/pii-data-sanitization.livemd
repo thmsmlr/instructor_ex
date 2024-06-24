@@ -1,0 +1,149 @@
+# PII Data Sanitization
+
+## Section
+
+```elixir
+Mix.install(
+  [
+    {:instructor, "~> 0.0.0"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [api_key: System.fetch_env!("LB_OPENAI_API_KEY")]
+    ]
+  ]
+)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+### Overview
+
+This example demonstrates the usage of OpenAI's ChatCompletion model for the extraction and scrubbing of Personally Identifiable Information (PII) from an input. The code defines Ecto schema to manage the PII data and offers function for both extraction and sanitation.
+
+#### Defining the Structures
+
+First, Ecto schemas are defined to represent the PII data and the overall structure for PII data extraction.
+
+```elixir
+defmodule PII do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @doc """
+  ## Field Descriptions:
+  - index: an auto incrementing integer starting at zero
+  - type: the type of personal identifiable information
+  - value: the PII value
+  """
+  @primary_key false
+  embedded_schema do
+    embeds_many :data, Datum, primary_key: false do
+      field(:index, :integer)
+      field(:type, :string)
+      field(:value, :string)
+    end
+  end
+
+  @doc """
+  Iterates over the private data and replaces the value with a placeholder in the
+  form of <{data_type}_{i}>
+  """
+  def scrub({:ok, pii}, input) do
+    Enum.reduce(pii.data, input, fn datum, acc ->
+      String.replace(acc, datum.value, "<#{datum.type}_#{datum.index}>")
+    end)
+  end
+
+  def scrub({:error, reason}, _input) do
+    dbg(reason)
+  end
+
+  def extract(input) do
+    Instructor.chat_completion(
+      model: "gpt-3.5-turbo",
+      response_model: PII,
+      max_retries: 3,
+      messages: [
+        %{
+          role: "system",
+          content:
+            "You are a world class PII scrubbing model, Extract the PII data from the following document"
+        },
+        %{
+          role: "system",
+          content: """
+          Examples of PII: names, addresses, phone numbers, email addresses, financial information
+          """
+        },
+        %{
+          role: "system",
+          content: """
+          Instructions:
+          - any spaces in the type should be converted to underscores and all letters should be lower case
+          - use abbreviations when choosing the type
+          """
+        },
+        %{
+          role: "user",
+          content: input
+        }
+      ]
+    )
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, PII, <<70, 79, 82, 49, 0, 0, 26, ...>>, {:extract, 1}}
+```
+
+### Extracting PII Data
+
+The OpenAI API is utilized to extract PII information from a given input.
+
+```elixir
+input =
+  "Hello John Smith, I am Jill. Your GitBoat, LLC credit card account 1111-0000-1111-8765 has a minimum payment of $33.32 that is due by July 24th."
+
+pii_data = PII.extract(input)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %PII{
+   data: [
+     %PII.Datum{index: 0, type: "credit_card_number", value: "1111-0000-1111-8765"},
+     %PII.Datum{index: 1, type: "currency", value: "$33.32"},
+     %PII.Datum{index: 2, type: "date", value: "July 24th"},
+     %PII.Datum{index: 3, type: "person_name", value: "John Smith"},
+     %PII.Datum{index: 4, type: "person_name", value: "Jill"},
+     %PII.Datum{index: 5, type: "organization_name", value: "GitBoat, LLC"}
+   ]
+ }}
+```
+
+### Scrubbing PII Data
+
+After extracting the PII data, the `PII.scrub/2` funnction is used to sanitize the input.
+
+```elixir
+PII.scrub(pii_data, input)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Hello <person_name_3>, I am <person_name_4>. Your <organization_name_5> credit card account <credit_card_number_0> has a minimum payment of <currency_1> that is due by <date_2>."
+```
+
+<!-- livebook:{"offset":3702,"stamp":{"token":"XCP.oD4NDrK1viUlbkhzfBBPaVNvLsQzDjGpvT-bw6xDfEVSeL5u-2lPnLtPOpO1Fc2UWX19NiV-IHEqhEHJp3gA85416Ru1b3zNXWQTuX4aIrGFyWLrkFUot_c","version":2}} -->
