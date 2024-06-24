@@ -440,8 +440,8 @@ defmodule Instructor do
 
       {:valid_json, {:error, error}} ->
         # pass the error as it is to the user consuming API
-        # one complex use case is 
-        # -> you might want to reformat the json data from a different model via another API call. 
+        # one complex use case is
+        # -> you might want to reformat the json data from a different model via another API call.
         # So, a smaller model like claude-haiku for subsequent LLM call
         # https://github.com/thmsmlr/instructor_ex/pull/55/files
         Logger.error(error: "Invalid JSON returned from LLM: #{inspect(error)}")
