@@ -113,7 +113,7 @@ defmodule Instructor.Adapters.Anthropic do
   Expected output:
     %{"choices" => [%{"delta" => %{"content" => chunk}}]}
   """
-  def to_openai_streaming_response(%{"type" => event} = chunk)
+  def to_openai_streaming_response(%{"type" => event})
       when event in [
              "message_start",
              "content_block_stop",
@@ -129,7 +129,7 @@ defmodule Instructor.Adapters.Anthropic do
         %{
           "type" => "content_block_start",
           "content_block" => %{"type" => "text", "text" => returned_text}
-        } = chunk
+        }
       ) do
     final_massage_into_openai_response(returned_text)
   end
@@ -138,7 +138,7 @@ defmodule Instructor.Adapters.Anthropic do
         %{
           "type" => "content_block_delta",
           "delta" => %{"type" => "text_delta", "text" => returned_text}
-        } = chunk
+        }
       ) do
     final_massage_into_openai_response(returned_text)
   end
