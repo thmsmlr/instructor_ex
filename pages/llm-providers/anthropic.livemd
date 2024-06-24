@@ -5,9 +5,7 @@
 ```elixir
 Mix.install(
   [
-    {:instructor,
-     path:
-       Path.expand("/Users/abhishek/Downloads/perps/experiments/open_source_elixir/instructor_ex")}
+    {:instructor, git: "https://github.com/TwistingTwists/instructor_ex", branch: "claude_json"}
   ],
   config: [
     instructor: [
@@ -58,7 +56,7 @@ end
 
 is_spam? = fn text ->
   Instructor.chat_completion(
-    model: "claude-3-haiku-20240307",
+    model: "claude-3-5-sonnet-20240620",
     response_model: SpamPrediction,
     max_retries: 3,
     mode: :md_json,
@@ -82,6 +80,17 @@ end
 
 is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 ````
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %SpamPrediction{
+   class: :spam,
+   reason: "Nigerian prince scam, unrelated to clothing retail",
+   score: 0.99
+ }}
+```
 
 We don't have to stop just at a boolean inclusion, we can also easily extend this idea to multiple categories or classes that we can classify the text into. In this example, let's consider classifying support emails. We want to know whether it's a `general_inquiry`, `billing_issue`, or a `technical_issue` perhaps it rightly fits in multiple classes. This can be useful if we want to cc' specialized support agents when intersecting customer issues occur
 
@@ -109,7 +118,8 @@ end
 classify_email = fn text ->
   {:ok, %{tags: result}} =
     Instructor.chat_completion(
-      model: "gpt-3.5-turbo",
+      mode: :md_json,
+      model: "claude-3-5-sonnet-20240620",
       response_model: EmailClassifications,
       messages: [
         %{
@@ -131,4 +141,73 @@ classify_email.("My account is locked and I can't access my billing info.")
 [:technical_issue, :billing_issue]
 ```
 
-<!-- livebook:{"offset":4335,"stamp":{"token":"XCP.z64pnpwAt12QVZZsOwZ6F4ZHjZz_AQ4EOrHm2Oty-LTs40gELuOk8NpLoz4A0d8TU_d_JsWFYjmtedcbLWMIT5fQxG9kUhv7g339Y6UB8ejsS0VXBeBShcuthFzN","version":2}} -->
+```elixir
+defmodule President do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+# Instructor.chat_completion(
+#   mode: :json,
+#   model: "claude-3-5-sonnet-20240620",
+#   response_model: President,
+#   messages: [
+#     %{role: "user", content: "Who was the first president of the United States?"}
+#   ]
+# )
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, President, <<70, 79, 82, 49, 0, 0, 15, ...>>,
+ [__schema__: 1, __schema__: 1, __schema__: 1, __schema__: 1, __schema__: 2, __schema__: 2, ...]}
+```
+
+```elixir
+Instructor.chat_completion(
+  model: "claude-3-5-sonnet-20240620",
+  mode: :md_json,
+  stream: true,
+  response_model: {:array, President},
+  messages: [
+    %{role: "user", content: "Who are the first three presidents"}
+  ]
+)
+|> Stream.each(fn {:ok, x} -> IO.inspect(x) end)
+|> Stream.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%President{
+  first_name: "George",
+  last_name: "Washington",
+  entered_office_date: ~D[1789-04-30]
+}
+%President{
+  first_name: "John",
+  last_name: "Adams",
+  entered_office_date: ~D[1797-03-04]
+}
+%President{
+  first_name: "Thomas",
+  last_name: "Jefferson",
+  entered_office_date: ~D[1801-03-04]
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+<!-- livebook:{"offset":5849,"stamp":{"token":"XCP.Kyr0VQqT1yKDP6vCgVHdqb_SnPhqWWna0ANYZulYu-YGE7OwrRJr5U8r6_omoYQocKuofIBpbrGRSxrvvRVfkIPn7AXxBTLsXggxkAQ89NKCjCo3pS_qTTYBH40","version":2}} -->
