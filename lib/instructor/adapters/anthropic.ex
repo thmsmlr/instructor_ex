@@ -5,7 +5,7 @@ defmodule Instructor.Adapters.Anthropic do
   @behaviour Instructor.Adapter
 
   @impl true
-  def chat_completion(params, config) do
+  def chat_completion(params, config \\ nil) do
     config = if config, do: config, else: config()
 
     # Peel off instructor only parameters
@@ -53,11 +53,13 @@ defmodule Instructor.Adapters.Anthropic do
   #   "type" => "message",
   #   "usage" => %{"input_tokens" => 243, "output_tokens" => 132}
   # }
-  defp to_openai_response(params) do
+  defp to_openai_response(%{"content" => [%{"text" => content_text, "type" => "text"}]}=_params) do
+    # optionally, remove ```
+    content_text = content_text |> String.trim_trailing("\n```")
     %{
       "choices" => [
         %{
-          "message" => params
+          "message" => %{"content" => content_text}
         }
       ]
     }
