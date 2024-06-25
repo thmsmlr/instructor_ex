@@ -13,17 +13,19 @@ defmodule Instructor.Adapters.OpenAI do
     {_, params} = Keyword.pop(params, :validation_context)
     {_, params} = Keyword.pop(params, :max_retries)
     {_, params} = Keyword.pop(params, :mode)
+    {before_request, params} = Keyword.pop(params, :before_request)
+    {after_response, params} = Keyword.pop(params, :after_response)
     stream = Keyword.get(params, :stream, false)
     params = Enum.into(params, %{})
 
     if stream do
-      do_streaming_chat_completion(params, config)
+      do_streaming_chat_completion(params, config, before_request, after_response)
     else
-      do_chat_completion(params, config)
+      do_chat_completion(params, config, before_request, after_response)
     end
   end
 
-  defp do_streaming_chat_completion(params, config) do
+  defp do_streaming_chat_completion(params, config, before_request, after_response) do
     pid = self()
     options = http_options(config)
 
@@ -35,6 +37,10 @@ defmodule Instructor.Adapters.OpenAI do
               json: params,
               auth: {:bearer, api_key(config)},
               into: fn {:data, data}, {req, resp} ->
+                if is_function(after_response) do
+                  after_response.({{:data, data}, {req, resp}})
+                end
+
                 chunks =
                   data
                   |> String.split("\n")
@@ -55,7 +61,13 @@ defmodule Instructor.Adapters.OpenAI do
               end
             )
 
-          Req.post(url(config), options)
+          req = Req.new([url: url(config)] ++ options)
+
+          if is_function(before_request) do
+            before_request.(req)
+          end
+
+          Req.post(req)
           send(pid, :done)
         end)
       end,
@@ -75,10 +87,21 @@ defmodule Instructor.Adapters.OpenAI do
     )
   end
 
-  defp do_chat_completion(params, config) do
+  defp do_chat_completion(params, config, before_request, after_response) do
     options = Keyword.merge(http_options(config), json: params, auth: {:bearer, api_key(config)})
+    req = Req.new([url: url(config)] ++ options)
 
-    case Req.post(url(config), options) do
+    if is_function(before_request) do
+      before_request.(req)
+    end
+
+    response = Req.post(req)
+
+    if is_function(after_response) do
+      after_response.(response)
+    end
+
+    case response do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       {:ok, %{status: status}} -> {:error, "Unexpected HTTP response code: #{status}"}
       {:error, reason} -> {:error, reason}
