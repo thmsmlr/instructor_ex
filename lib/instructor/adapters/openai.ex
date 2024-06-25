@@ -67,7 +67,7 @@ defmodule Instructor.Adapters.OpenAI do
             before_request.(req)
           end
 
-          Req.post!(req)
+          Req.post(req)
           send(pid, :done)
         end)
       end,
@@ -95,15 +95,16 @@ defmodule Instructor.Adapters.OpenAI do
       before_request.(req)
     end
 
-    response = Req.post!(req)
+    response = Req.post(req)
 
     if is_function(after_response) do
       after_response.(response)
     end
 
-    case response.status do
-      200 -> {:ok, response.body}
-      _ -> {:error, response.body}
+    case response do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: status}} -> {:error, "Unexpected HTTP response code: #{status}"}
+      {:error, reason} -> {:error, reason}
     end
   end
 

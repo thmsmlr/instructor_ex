@@ -38,9 +38,9 @@ defmodule Politician do
   - first_name: Their first name
   - last_name: Their last name
   - offices_held:
-    - office: The branch and position in government they served in
-    - from_date: When they entered office or null
-    - until_date: The date they left office or null
+    - office: The name of the political office held by the politician (in lowercase)
+    - from_date: When they entered office (YYYY-MM-DD)
+    - to_date: The date they left office, if relevant (YYYY-MM-DD or null).
   """
   @primary_key false
   embedded_schema do
@@ -195,17 +195,20 @@ Instructor.chat_completion(
 <!-- livebook:{"output":true} -->
 
 ```
-
-09:27:49.015 [debug] Retrying LLM call for NumberSeries:
+10:30:03.764 [debug] Retrying LLM call for NumberSeries:
 
  "series - The sum of the series must be even\nseries - should have at least 10 item(s)"
 
+10:30:04.794 [debug] Retrying LLM call for NumberSeries:
+
+ "series - The sum of the series must be even"
 ```
 
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, %NumberSeries{series: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}}
+{:ok,
+ %NumberSeries{series: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}}
 ```
 
 Here we demonstrated using regular Lixar code to validate the outputs of an LLM, but we don't have to stop there. We can actually use the LLM to validate the outputs of the LLM.
@@ -280,7 +283,7 @@ presidents_stream =
     stream: true,
     response_model: {:array, Politician},
     messages: [
-      %{role: "user", content: "Who are the first 5 presidents of the United States?"}
+      %{role: "user", content: "Who were the first 5 presidents of the United States?"}
     ]
   )
 ```
@@ -298,7 +301,10 @@ As you can see, instead of returning the result, we return a stream which can be
 
 ```elixir
 presidents_stream
-|> Stream.each(fn {:ok, politician} -> IO.inspect(politician) end)
+|> Stream.each(fn
+  {:ok, politician} -> IO.inspect(politician)
+  {:error, changeset} -> IO.inspect(changeset)
+end)
 |> Stream.run()
 ```
 

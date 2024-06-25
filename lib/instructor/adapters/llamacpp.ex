@@ -78,7 +78,7 @@ defmodule Instructor.Adapters.Llamacpp do
             before_request.(req)
           end
 
-          Req.post!(req)
+          Req.post(req)
           send(pid, :done)
         end)
       end,
@@ -122,18 +122,21 @@ defmodule Instructor.Adapters.Llamacpp do
       before_request.(req)
     end
 
-    response = Req.post!(req)
+    response = Req.post(req)
 
     if is_function(after_response) do
       after_response.(response)
     end
 
     case response do
-      %{status: 200, body: %{"content" => params}} ->
+      {:ok, %{status: 200, body: %{"content" => params}}} ->
         {:ok, to_openai_response(params)}
 
-      _ ->
-        nil
+      {:ok, %{status: status}} ->
+        {:error, "Unexpected HTTP response code: #{status}"}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
