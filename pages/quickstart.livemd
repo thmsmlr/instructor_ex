@@ -95,8 +95,8 @@ Instructor.chat_completion(
    last_name: "Biden",
    offices_held: [
      %Politician.Office{office: :president, from_date: ~D[2021-01-20], to_date: nil},
-     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: ~D[2017-01-20]},
-     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: ~D[2009-01-15]}
+     %Politician.Office{office: :vice_president, from_date: ~D[2009-01-20], to_date: nil},
+     %Politician.Office{office: :senate, from_date: ~D[1973-01-03], to_date: nil}
    ]
  }}
 ```
@@ -205,7 +205,7 @@ Instructor.chat_completion(
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, %NumberSeries{series: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}}
+{:ok, %NumberSeries{series: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}}
 ```
 
 Here we demonstrated using regular Lixar code to validate the outputs of an LLM, but we don't have to stop there. We can actually use the LLM to validate the outputs of the LLM.
