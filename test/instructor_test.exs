@@ -21,6 +21,9 @@ defmodule InstructorTest do
 
       :openai_mock ->
         Application.put_env(:instructor, :adapter, InstructorTest.MockOpenAI)
+
+      nil ->
+        :ok
     end
   end
 
@@ -418,5 +421,10 @@ defmodule InstructorTest do
       assert [ok: %{name: "Thomas"}, ok: %{name: "Jason"}] =
                result |> Enum.to_list()
     end
+  end
+
+  test "Llamacpp adapter gets the url from :api_url in config" do
+    Application.put_env(:instructor, :llamacpp, api_url: "http://1.2.3.4:8080/completion")
+    assert "http://1.2.3.4:8080/completion" == Instructor.Adapters.Llamacpp.url()
   end
 end

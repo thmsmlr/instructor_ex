@@ -152,8 +152,8 @@ defmodule Instructor.Adapters.Llamacpp do
     "<s>#{prompt}"
   end
 
-  defp url() do
-    Keyword.get(config(), :url, "http://localhost:8080/completion")
+  def url() do
+    Keyword.get(config(), :api_url, "http://localhost:8080/completion")
   end
 
   defp chat_template() do
