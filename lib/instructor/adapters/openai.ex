@@ -5,25 +5,30 @@ defmodule Instructor.Adapters.OpenAI do
   @behaviour Instructor.Adapter
 
   @impl true
-  def chat_completion(params, config) do
+  def chat_completion(prompt, params, config) do
     config = if config, do: config, else: config()
 
+    stream = Keyword.get(params, :stream, false)
+
+    if stream do
+      do_streaming_chat_completion(prompt, config)
+    else
+      do_chat_completion(prompt, config)
+    end
+  end
+
+  @impl true
+  def prompt(params) do
     # Peel off instructor only parameters
     {_, params} = Keyword.pop(params, :response_model)
     {_, params} = Keyword.pop(params, :validation_context)
     {_, params} = Keyword.pop(params, :max_retries)
     {_, params} = Keyword.pop(params, :mode)
-    stream = Keyword.get(params, :stream, false)
-    params = Enum.into(params, %{})
 
-    if stream do
-      do_streaming_chat_completion(params, config)
-    else
-      do_chat_completion(params, config)
-    end
+    Enum.into(params, %{})
   end
 
-  defp do_streaming_chat_completion(params, config) do
+  defp do_streaming_chat_completion(prompt, config) do
     pid = self()
     options = http_options(config)
 
@@ -32,7 +37,7 @@ defmodule Instructor.Adapters.OpenAI do
         Task.async(fn ->
           options =
             Keyword.merge(options,
-              json: params,
+              json: prompt,
               auth: {:bearer, api_key(config)},
               into: fn {:data, data}, {req, resp} ->
                 chunks =
@@ -75,8 +80,8 @@ defmodule Instructor.Adapters.OpenAI do
     )
   end
 
-  defp do_chat_completion(params, config) do
-    options = Keyword.merge(http_options(config), json: params, auth: {:bearer, api_key(config)})
+  defp do_chat_completion(prompt, config) do
+    options = Keyword.merge(http_options(config), json: prompt, auth: {:bearer, api_key(config)})
 
     case Req.post(url(config), options) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}

@@ -260,6 +260,61 @@ defmodule Instructor do
     changeset
   end
 
+  @spec prepare_prompt(Keyword.t()) :: map()
+  def prepare_prompt(params, config \\ nil) do
+    response_model = Keyword.fetch!(params, :response_model)
+    mode = Keyword.get(params, :mode, :tools)
+    params = params_for_mode(mode, response_model, params)
+
+    adapter(config).prompt(params)
+  end
+
+  @spec consume_response(any(), Keyword.t()) ::
+          {:ok, map()} | {:error, String.t()} | {:error, Ecto.Changeset.t(), Keyword.t()}
+  def consume_response(response, params) do
+    validation_context = Keyword.get(params, :validation_context, %{})
+    response_model = Keyword.fetch!(params, :response_model)
+    mode = Keyword.get(params, :mode, :tools)
+
+    model =
+      if is_ecto_schema(response_model) do
+        response_model.__struct__()
+      else
+        {%{}, response_model}
+      end
+
+    with {:valid_json, {:ok, params}} <- {:valid_json, parse_response_for_mode(mode, response)},
+         changeset <- cast_all(model, params),
+         {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
+           {:validation, call_validate(response_model, changeset, validation_context), response} do
+      {:ok, changeset |> Ecto.Changeset.apply_changes()}
+    else
+      {:valid_json, {:error, error}} ->
+        {:error, "Invalid JSON returned from LLM: #{inspect(error)}"}
+
+      {:validation, changeset, response} ->
+        errors = Instructor.ErrorFormatter.format_errors(changeset)
+
+        params =
+          Keyword.update(params, :messages, [], fn messages ->
+            messages ++
+              echo_response(response) ++
+              [
+                %{
+                  role: "system",
+                  content: """
+                  The response did not pass validation. Please try again and fix the following validation errors:\n
+
+                  #{errors}
+                  """
+                }
+              ]
+          end)
+
+        {:error, changeset, params}
+    end
+  end
+
   defp do_streaming_partial_array_chat_completion(response_model, params, config) do
     wrapped_model = %{
       value:
@@ -270,7 +325,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_mode(mode, wrapped_model, params)
+    prompt = prepare_prompt(params, config)
 
     model =
       if is_ecto_schema(response_model) do
@@ -279,7 +334,7 @@ defmodule Instructor do
         {%{}, response_model}
       end
 
-    adapter(config).chat_completion(params, config)
+    adapter(config).chat_completion(prompt, params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
@@ -341,9 +396,9 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_mode(mode, wrapped_model, params)
+    prompt = prepare_prompt(params, config)
 
-    adapter(config).chat_completion(params, config)
+    adapter(config).chat_completion(prompt, params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
@@ -389,9 +444,10 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_mode(mode, wrapped_model, params)
 
-    adapter(config).chat_completion(params, config)
+    prompt = prepare_prompt(params, config)
+
+    adapter(config).chat_completion(prompt, params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Jaxon.Stream.from_enumerable()
     |> Jaxon.Stream.query([:root, "value", :all])
@@ -416,32 +472,18 @@ defmodule Instructor do
   end
 
   defp do_chat_completion(response_model, params, config) do
-    validation_context = Keyword.get(params, :validation_context, %{})
     max_retries = Keyword.get(params, :max_retries)
-    mode = Keyword.get(params, :mode, :tools)
-    params = params_for_mode(mode, response_model, params)
+    prompt = prepare_prompt(params, config)
 
-    model =
-      if is_ecto_schema(response_model) do
-        response_model.__struct__()
-      else
-        {%{}, response_model}
-      end
-
-    with {:llm, {:ok, response}} <- {:llm, adapter(config).chat_completion(params, config)},
-         {:valid_json, {:ok, params}} <- {:valid_json, parse_response_for_mode(mode, response)},
-         changeset <- cast_all(model, params),
-         {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
-           {:validation, call_validate(response_model, changeset, validation_context), response} do
-      {:ok, changeset |> Ecto.Changeset.apply_changes()}
+    with {:llm, {:ok, response}} <-
+           {:llm, adapter(config).chat_completion(prompt, params, config)},
+         {:ok, result} <- consume_response(response, params) do
+      {:ok, result}
     else
       {:llm, {:error, error}} ->
         {:error, "LLM Adapter Error: #{inspect(error)}"}
 
-      {:valid_json, {:error, error}} ->
-        {:error, "Invalid JSON returned from LLM: #{inspect(error)}"}
-
-      {:validation, changeset, response} ->
+      {:error, changeset, new_params} ->
         if max_retries > 0 do
           errors = Instructor.ErrorFormatter.format_errors(changeset)
 
@@ -449,23 +491,7 @@ defmodule Instructor do
             errors: errors
           )
 
-          params =
-            params
-            |> Keyword.put(:max_retries, max_retries - 1)
-            |> Keyword.update(:messages, [], fn messages ->
-              messages ++
-                echo_response(response) ++
-                [
-                  %{
-                    role: "system",
-                    content: """
-                    The response did not pass validation. Please try again and fix the following validation errors:\n
-
-                    #{errors}
-                    """
-                  }
-                ]
-            end)
+          params = Keyword.put(new_params, :max_retries, max_retries - 1)
 
           do_chat_completion(response_model, params, config)
         else

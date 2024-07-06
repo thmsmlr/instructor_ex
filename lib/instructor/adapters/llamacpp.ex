@@ -31,34 +31,39 @@ defmodule Instructor.Adapters.Llamacpp do
     ...> )
   """
   @impl true
-  def chat_completion(params, _config \\ nil) do
+  def chat_completion(prompt, params, _config \\ nil) do
+    stream = Keyword.get(params, :stream, false)
+
+    if stream do
+      do_streaming_chat_completion(prompt)
+    else
+      do_chat_completion(prompt)
+    end
+  end
+
+  @impl true
+  def prompt(params) do
     {response_model, _} = Keyword.pop!(params, :response_model)
     {messages, _} = Keyword.pop!(params, :messages)
 
     json_schema = JSONSchema.from_ecto_schema(response_model)
     grammar = GBNF.from_json_schema(json_schema)
     prompt = apply_chat_template(chat_template(), messages)
-    stream = Keyword.get(params, :stream, false)
 
-    if stream do
-      do_streaming_chat_completion(prompt, grammar)
-    else
-      do_chat_completion(prompt, grammar)
-    end
+    %{
+      grammar: grammar,
+      prompt: prompt
+    }
   end
 
-  defp do_streaming_chat_completion(prompt, grammar) do
+  defp do_streaming_chat_completion(prompt) do
     pid = self()
 
     Stream.resource(
       fn ->
         Task.async(fn ->
           Req.post(url(),
-            json: %{
-              grammar: grammar,
-              prompt: prompt,
-              stream: true
-            },
+            json: Map.put(prompt, :stream, true),
             receive_timeout: 60_000,
             into: fn {:data, data}, {req, resp} ->
               send(pid, data)
@@ -94,13 +99,10 @@ defmodule Instructor.Adapters.Llamacpp do
     }
   end
 
-  defp do_chat_completion(prompt, grammar) do
+  defp do_chat_completion(prompt) do
     response =
       Req.post(url(),
-        json: %{
-          grammar: grammar,
-          prompt: prompt
-        },
+        json: prompt,
         receive_timeout: 60_000
       )
 

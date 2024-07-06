@@ -21,6 +21,9 @@ defmodule InstructorTest do
 
       :openai_mock ->
         Application.put_env(:instructor, :adapter, InstructorTest.MockOpenAI)
+
+      _ ->
+        :ok
     end
   end
 
@@ -417,6 +420,138 @@ defmodule InstructorTest do
 
       assert [ok: %{name: "Thomas"}, ok: %{name: "Jason"}] =
                result |> Enum.to_list()
+    end
+  end
+
+  describe "prepare_prompt" do
+    @tag adapter: :openai_mock
+    test "calls adapter's prompt/1 callback" do
+      expect(InstructorTest.MockOpenAI, :prompt, fn params ->
+        assert params[:tool_choice] == %{function: %{name: "Schema"}, type: "function"}
+
+        assert params[:tools] == [
+                 %{
+                   function: %{
+                     "description" =>
+                       "Correctly extracted `Schema` with all the required parameters with correct types",
+                     "name" => "Schema",
+                     "parameters" => %{
+                       "properties" => %{
+                         "birth_date" => %{"format" => "date", "type" => "string"},
+                         "name" => %{"type" => "string"}
+                       },
+                       "required" => ["birth_date", "name"],
+                       "title" => "root",
+                       "type" => "object"
+                     }
+                   },
+                   type: "function"
+                 }
+               ]
+
+        assert params[:model] == "gpt-3.5-turbo"
+        assert params[:response_model] == %{name: :string, birth_date: :date}
+
+        assert params[:messages] == [
+                 %{role: "user", content: "Who was the first president of the USA?"}
+               ]
+
+        %{foo: "bar"}
+      end)
+
+      assert %{foo: "bar"} ==
+               Instructor.prepare_prompt(
+                 model: "gpt-3.5-turbo",
+                 response_model: %{name: :string, birth_date: :date},
+                 messages: [
+                   %{role: "user", content: "Who was the first president of the USA?"}
+                 ]
+               )
+    end
+  end
+
+  describe "consume_response" do
+    @tag adapter: :openai_mock
+    test "returns data if response is valid" do
+      response =
+        TestHelpers.example_openai_response(:tools, %{
+          name: "George Washington",
+          birth_date: ~D[1732-02-22]
+        })
+
+      assert {:ok, %{name: "George Washington", birth_date: ~D[1732-02-22]}} =
+               Instructor.consume_response(response,
+                 response_model: %{name: :string, birth_date: :date}
+               )
+    end
+
+    test "errors on invalid json" do
+      assert {:error,
+              "Invalid JSON returned from LLM: %Jason.DecodeError{position: 0, token: nil, data: \"I'm sorry Dave, I'm afraid I can't do this\"}"} =
+               Instructor.consume_response(
+                 %{
+                   "choices" => [
+                     %{
+                       "message" => %{
+                         "tool_calls" => [
+                           %{
+                             "function" => %{
+                               "arguments" => "I'm sorry Dave, I'm afraid I can't do this"
+                             }
+                           }
+                         ]
+                       }
+                     }
+                   ]
+                 },
+                 response_model: %{name: :string, birth_date: :date}
+               )
+    end
+
+    test "returns new params on failed cast" do
+      response =
+        TestHelpers.example_openai_response(:tools, %{
+          name: 123,
+          birth_date: false
+        })
+
+      assert {:error,
+              %Ecto.Changeset{errors: [name: {"is invalid", _}, birth_date: {"is invalid", _}]},
+              [
+                response_model: %{name: :string, birth_date: :date},
+                messages: [
+                  %{
+                    role: "assistant",
+                    content:
+                      "{\"function\":{\"arguments\":\"{\\\"name\\\":123,\\\"birth_date\\\":false}\",\"name\":\"schema\"},\"id\":\"call_DT9fBvVCHWGSf9IeFZnlarIY\",\"type\":\"function\"}",
+                    tool_calls: [
+                      %{
+                        "function" => %{
+                          "arguments" => "{\"name\":123,\"birth_date\":false}",
+                          "name" => "schema"
+                        },
+                        "id" => "call_DT9fBvVCHWGSf9IeFZnlarIY",
+                        "type" => "function"
+                      }
+                    ]
+                  },
+                  %{
+                    name: "schema",
+                    role: "tool",
+                    content: "{\"name\":123,\"birth_date\":false}",
+                    tool_call_id: "call_DT9fBvVCHWGSf9IeFZnlarIY"
+                  },
+                  %{
+                    role: "system",
+                    content:
+                      "The response did not pass validation. Please try again and fix the following validation errors:\n\n\nname - is invalid\nbirth_date - is invalid\n"
+                  }
+                ]
+              ]} =
+               Instructor.consume_response(response,
+                 response_model: %{name: :string, birth_date: :date},
+                 messages: []
+               )
     end
   end
 end
