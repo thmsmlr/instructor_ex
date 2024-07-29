@@ -38,9 +38,9 @@ defmodule Politician do
   - first_name: Their first name
   - last_name: Their last name
   - offices_held:
-    - office: The branch and position in government they served in
-    - from_date: When they entered office or null
-    - until_date: The date they left office or null
+    - office: The name of the political office held by the politician (in lowercase)
+    - from_date: When they entered office (YYYY-MM-DD)
+    - to_date: The date they left office, if relevant (YYYY-MM-DD or null).
   """
   @primary_key false
   embedded_schema do
@@ -196,11 +196,11 @@ Instructor.chat_completion(
 
 ```
 
-11:15:25.188 [debug] Retrying LLM call for NumberSeries:
+10:30:03.764 [debug] Retrying LLM call for NumberSeries:
 
  "series - The sum of the series must be even\nseries - should have at least 10 item(s)"
 
-11:15:26.662 [debug] Retrying LLM call for NumberSeries:
+10:30:04.794 [debug] Retrying LLM call for NumberSeries:
 
  "series - The sum of the series must be even"
 
@@ -209,7 +209,8 @@ Instructor.chat_completion(
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, %NumberSeries{series: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]}}
+{:ok,
+ %NumberSeries{series: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]}}
 ```
 
 Here we demonstrated using regular Lixar code to validate the outputs of an LLM, but we don't have to stop there. We can actually use the LLM to validate the outputs of the LLM.
@@ -284,7 +285,7 @@ presidents_stream =
     stream: true,
     response_model: {:array, Politician},
     messages: [
-      %{role: "user", content: "Who are the first 5 presidents of the United States?"}
+      %{role: "user", content: "Who were the first 5 presidents of the United States?"}
     ]
   )
 ```
@@ -302,7 +303,10 @@ As you can see, instead of returning the result, we return a stream which can be
 
 ```elixir
 presidents_stream
-|> Stream.each(fn {:ok, politician} -> IO.inspect(politician) end)
+|> Stream.each(fn
+  {:ok, politician} -> IO.inspect(politician)
+  {:error, changeset} -> IO.inspect(changeset)
+end)
 |> Stream.run()
 ```
 
@@ -409,7 +413,7 @@ end)
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: []}
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: nil, from_date: nil, to_date: nil}]}
-[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: nil, to_date: nil}]}
+[Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: nil, from_date: ~D[1789-04-30], to_date: nil}]}
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: nil}]}
 [Partial]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: ~D[1797-03-04]}]}
 [Final]: %Politician{first_name: "George", last_name: "Washington", offices_held: [%Politician.Office{office: :president, from_date: ~D[1789-04-30], to_date: ~D[1797-03-04]}]}
@@ -507,4 +511,4 @@ Instructor.chat_completion(
 
 And just like that, you can extend Instructor to get the LLM to return whatever you want.
 
-<!-- livebook:{"offset":16680,"stamp":{"token":"XCP.7_vOOq_exu6XoigIHJtkt7GxlcdqzdN4j6ovWaQa8djrcdzrCyjHZtk73Msk-X9EzBr9RyKdDrOgtV16ium53Gz50dKwtBgzzmgt8v-ZVXFHa8xbY6DE1rA","version":2}} -->
+<!-- livebook:{"offset":16817,"stamp":{"token":"XCP.5TJEWZKV766d3PqSlapF6zfDrzPBF2D8YZUn1BV9Fgs73D-kM1ZIpv6KHUXjgokTe8_FejNl25O7e0oAjBtqUTEnpAzkOGBlPiJirCXs-FR86ffK3qxBXWE","version":2}} -->

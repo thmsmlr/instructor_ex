@@ -560,11 +560,9 @@ defmodule Instructor do
           """
         }
 
-        messages = [sys_message | messages]
-
         case mode do
           :md_json ->
-            messages ++
+            [sys_message | messages] ++
               [
                 %{
                   role: "assistant",
@@ -572,7 +570,10 @@ defmodule Instructor do
                 }
               ]
 
-          _ ->
+          :json ->
+            [sys_message | messages]
+
+          :tools ->
             messages
         end
       end)
