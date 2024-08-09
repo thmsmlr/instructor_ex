@@ -33,7 +33,7 @@ defmodule Instructor.Adapters.OpenAI do
           options =
             Keyword.merge(options,
               json: params,
-              auth: {:bearer, api_key(config)},
+              headers: auth_header(config),
               into: fn {:data, data}, {req, resp} ->
                 chunks =
                   data
@@ -76,7 +76,7 @@ defmodule Instructor.Adapters.OpenAI do
   end
 
   defp do_chat_completion(params, config) do
-    options = Keyword.merge(http_options(config), json: params, auth: {:bearer, api_key(config)})
+    options = Keyword.merge(http_options(config), json: params, headers: auth_header(config))
 
     case Req.post(url(config), options) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
@@ -85,9 +85,16 @@ defmodule Instructor.Adapters.OpenAI do
     end
   end
 
-  defp url(config), do: api_url(config) <> "/v1/chat/completions"
+  defp url(config), do: api_url(config) <> api_path(config)
   defp api_url(config), do: Keyword.fetch!(config, :api_url)
+  defp api_path(config), do: Keyword.fetch!(config, :api_path)
   defp api_key(config), do: Keyword.fetch!(config, :api_key)
+  defp auth_header(config) do
+    case Keyword.fetch!(config, :auth_mode) do
+      :api_key_header -> %{"api-key" => api_key(config)} # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference
+      _ -> %{"Authorization" => "Bearer #{api_key(config)}"}
+    end
+  end
   defp http_options(config), do: Keyword.fetch!(config, :http_options)
 
   defp config() do
@@ -95,6 +102,8 @@ defmodule Instructor.Adapters.OpenAI do
 
     default_config = [
       api_url: "https://api.openai.com",
+      api_path: "/v1/chat/completions",
+      auth_mode: :bearer,
       http_options: [receive_timeout: 60_000]
     ]
 
