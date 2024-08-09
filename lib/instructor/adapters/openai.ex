@@ -31,9 +31,9 @@ defmodule Instructor.Adapters.OpenAI do
       fn ->
         Task.async(fn ->
           options =
-            Keyword.merge(options,
+            Keyword.merge(options, [
+              auth_header(config),
               json: params,
-              headers: auth_header(config),
               into: fn {:data, data}, {req, resp} ->
                 chunks =
                   data
@@ -53,7 +53,7 @@ defmodule Instructor.Adapters.OpenAI do
 
                 {:cont, {req, resp}}
               end
-            )
+            ])
 
           Req.post(url(config), options)
           send(pid, :done)
@@ -76,7 +76,7 @@ defmodule Instructor.Adapters.OpenAI do
   end
 
   defp do_chat_completion(params, config) do
-    options = Keyword.merge(http_options(config), json: params, headers: auth_header(config))
+    options = Keyword.merge(http_options(config), [auth_header(config), json: params])
 
     case Req.post(url(config), options) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
@@ -88,13 +88,22 @@ defmodule Instructor.Adapters.OpenAI do
   defp url(config), do: api_url(config) <> api_path(config)
   defp api_url(config), do: Keyword.fetch!(config, :api_url)
   defp api_path(config), do: Keyword.fetch!(config, :api_path)
-  defp api_key(config), do: Keyword.fetch!(config, :api_key)
-  defp auth_header(config) do
-    case Keyword.fetch!(config, :auth_mode) do
-      :api_key_header -> %{"api-key" => api_key(config)} # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference
-      _ -> %{"Authorization" => "Bearer #{api_key(config)}"}
+
+  defp api_key(config) do
+    case Keyword.fetch!(config, :api_key) do
+      string when is_binary(string) -> string
+      fun when is_function(fun, 0) -> fun.()
     end
   end
+
+  defp auth_header(config) do
+    case Keyword.fetch!(config, :auth_mode) do
+      # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference
+      :api_key_header -> {:headers, %{"api-key" => api_key(config)}}
+      _ -> {:auth, {:bearer, api_key(config)}}
+    end
+  end
+
   defp http_options(config), do: Keyword.fetch!(config, :http_options)
 
   defp config() do
