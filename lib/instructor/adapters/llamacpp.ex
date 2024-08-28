@@ -53,7 +53,7 @@ defmodule Instructor.Adapters.Llamacpp do
     Stream.resource(
       fn ->
         Task.async(fn ->
-          Req.post!(url(),
+          Req.post(url(),
             json: %{
               grammar: grammar,
               prompt: prompt,
@@ -96,7 +96,7 @@ defmodule Instructor.Adapters.Llamacpp do
 
   defp do_chat_completion(prompt, grammar) do
     response =
-      Req.post!(url(),
+      Req.post(url(),
         json: %{
           grammar: grammar,
           prompt: prompt
@@ -105,11 +105,14 @@ defmodule Instructor.Adapters.Llamacpp do
       )
 
     case response do
-      %{status: 200, body: %{"content" => params}} ->
+      {:ok, %{status: 200, body: %{"content" => params}}} ->
         {:ok, to_openai_response(params)}
 
-      _ ->
-        nil
+      {:ok, %{status: status}} ->
+        {:error, "Unexpected HTTP response code: #{status}"}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
