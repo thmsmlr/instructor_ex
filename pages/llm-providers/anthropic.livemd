@@ -1,0 +1,213 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Text Classification - Anthropic
+
+```elixir
+Mix.install(
+  [
+    {:instructor, git: "https://github.com/TwistingTwists/instructor_ex", branch: "claude_json"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.Anthropic,
+      anthropic: [api_key: System.fetch_env!("LB_ANTHROPIC_API_KEY")]
+    ]
+  ]
+)
+```
+
+## Motivation
+
+Text classification is a common task in NLP and broadly applicable across software. Whether it be spam detection, or support ticket categorization, NLP is at the core. Historically, this required training custom, bespoke models that required collecting thousands of pre-labeled examples. With LLMs a lot of this knowledge is already encoded into the model. With proper instruction and guiding the output to a known set of classifications using GPT you can be up and running with a text classification model in no time.
+
+Hell, you can even use instructor to help generate the training set to train your own more efficient model. But let's not get ahead of ourselves, there's more on that later in the tutorials.
+
+## Binary Text Classification
+
+Spam detection is a classic example of binary text classification. It's as simple as returning a true / false of whether an example is in the class. This is pretty trivial to implement in instructor.
+
+````elixir
+defmodule SpamPrediction do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @doc """
+  ## Field Descriptions:
+  - class: Whether or not the email is spam.
+  - reason: A short, less than 10 word rationalization for the classification.
+  - score: A confidence score between 0.0 and 1.0 for the classification.
+  """
+  @primary_key false
+  embedded_schema do
+    field(:class, Ecto.Enum, values: [:spam, :not_spam])
+    field(:reason, :string)
+    field(:score, :float)
+  end
+
+  @impl true
+  def validate_changeset(changeset) do
+    changeset
+    |> Ecto.Changeset.validate_number(:score,
+      greater_than_or_equal_to: 0.0,
+      less_than_or_equal_to: 1.0
+    )
+  end
+end
+
+is_spam? = fn text ->
+  Instructor.chat_completion(
+    model: "claude-3-5-sonnet-20240620",
+    response_model: SpamPrediction,
+    max_retries: 3,
+    mode: :md_json,
+    messages: [
+      %{
+        role: "user",
+        content: """
+        Your purpose is to classify customer support emails as either spam or not.
+        This is for a clothing retail business.
+        They sell all types of clothing.
+
+        Classify the following email: 
+        ```
+        #{text}
+        ```
+        """
+      }
+    ]
+  )
+end
+
+is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
+````
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok,
+ %SpamPrediction{
+   class: :spam,
+   reason: "Nigerian prince scam, unrelated to clothing retail",
+   score: 0.99
+ }}
+```
+
+We don't have to stop just at a boolean inclusion, we can also easily extend this idea to multiple categories or classes that we can classify the text into. In this example, let's consider classifying support emails. We want to know whether it's a `general_inquiry`, `billing_issue`, or a `technical_issue` perhaps it rightly fits in multiple classes. This can be useful if we want to cc' specialized support agents when intersecting customer issues occur
+
+We can leverage `Ecto.Enum` to define a schema that restricts the LLM output to be a list of those values. We can also provide a `@doc` description to help guide the LLM with the semantic understanding of what these classifications ought to represent.
+
+```elixir
+defmodule EmailClassifications do
+  use Ecto.Schema
+
+  @doc """
+  A classification of a customer support email.
+
+  technical_issue - whether the user is having trouble accessing their account.
+  billing_issue - whether the customer is having trouble managing their billing or credit card
+  general_inquiry - all other issues
+  """
+  @primary_key false
+  embedded_schema do
+    field(:tags, {:array, Ecto.Enum},
+      values: [:general_inquiry, :billing_issue, :technical_issue]
+    )
+  end
+end
+
+classify_email = fn text ->
+  {:ok, %{tags: result}} =
+    Instructor.chat_completion(
+      mode: :md_json,
+      model: "claude-3-5-sonnet-20240620",
+      response_model: EmailClassifications,
+      messages: [
+        %{
+          role: "user",
+          content: "Classify the following text: #{text}"
+        }
+      ]
+    )
+
+  result
+end
+
+classify_email.("My account is locked and I can't access my billing info.")
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+[:technical_issue, :billing_issue]
+```
+
+```elixir
+defmodule President do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+# Instructor.chat_completion(
+#   mode: :json,
+#   model: "claude-3-5-sonnet-20240620",
+#   response_model: President,
+#   messages: [
+#     %{role: "user", content: "Who was the first president of the United States?"}
+#   ]
+# )
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, President, <<70, 79, 82, 49, 0, 0, 15, ...>>,
+ [__schema__: 1, __schema__: 1, __schema__: 1, __schema__: 1, __schema__: 2, __schema__: 2, ...]}
+```
+
+```elixir
+Instructor.chat_completion(
+  model: "claude-3-5-sonnet-20240620",
+  mode: :md_json,
+  stream: true,
+  response_model: {:array, President},
+  messages: [
+    %{role: "user", content: "Who are the first three presidents"}
+  ]
+)
+|> Stream.each(fn {:ok, x} -> IO.inspect(x) end)
+|> Stream.run()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%President{
+  first_name: "George",
+  last_name: "Washington",
+  entered_office_date: ~D[1789-04-30]
+}
+%President{
+  first_name: "John",
+  last_name: "Adams",
+  entered_office_date: ~D[1797-03-04]
+}
+%President{
+  first_name: "Thomas",
+  last_name: "Jefferson",
+  entered_office_date: ~D[1801-03-04]
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+<!-- livebook:{"offset":5849,"stamp":{"token":"XCP.Kyr0VQqT1yKDP6vCgVHdqb_SnPhqWWna0ANYZulYu-YGE7OwrRJr5U8r6_omoYQocKuofIBpbrGRSxrvvRVfkIPn7AXxBTLsXggxkAQ89NKCjCo3pS_qTTYBH40","version":2}} -->

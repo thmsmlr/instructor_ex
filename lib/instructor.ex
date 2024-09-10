@@ -118,6 +118,7 @@ defmodule Instructor do
           {:ok, Ecto.Schema.t()}
           | {:error, Ecto.Changeset.t()}
           | {:error, String.t()}
+          | {:error, any()}
           | Stream.t()
   def chat_completion(params, config \\ nil) do
     params =
@@ -269,7 +270,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_mode(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params, adapter(config))
 
     model =
       if is_ecto_schema(response_model) do
@@ -339,7 +340,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_mode(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params, adapter(config))
 
     adapter(config).chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
@@ -386,7 +387,7 @@ defmodule Instructor do
     params = Keyword.put(params, :response_model, wrapped_model)
     validation_context = Keyword.get(params, :validation_context, %{})
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_mode(mode, wrapped_model, params)
+    params = params_for_mode(mode, wrapped_model, params, adapter(config))
 
     adapter(config).chat_completion(params, config)
     |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
@@ -416,7 +417,7 @@ defmodule Instructor do
     validation_context = Keyword.get(params, :validation_context, %{})
     max_retries = Keyword.get(params, :max_retries)
     mode = Keyword.get(params, :mode, :tools)
-    params = params_for_mode(mode, response_model, params)
+    params = params_for_mode(mode, response_model, params, adapter(config))
 
     model =
       if is_ecto_schema(response_model) do
@@ -433,10 +434,16 @@ defmodule Instructor do
       {:ok, changeset |> Ecto.Changeset.apply_changes()}
     else
       {:llm, {:error, error}} ->
-        {:error, "LLM Adapter Error: #{inspect(error)}"}
+        {:error, {:adapter_error, error}}
 
       {:valid_json, {:error, error}} ->
-        {:error, "Invalid JSON returned from LLM: #{inspect(error)}"}
+        # pass the error as it is to the user consuming API
+        # one complex use case is
+        # -> you might want to reformat the json data from a different model via another API call.
+        # So, a smaller model like claude-haiku for subsequent LLM call
+        # https://github.com/thmsmlr/instructor_ex/pull/55/files
+        Logger.error(error: "Invalid JSON returned from LLM: #{inspect(error)}")
+        {:error, {:invalid_json, error}}
 
       {:validation, changeset, response} ->
         if max_retries > 0 do
@@ -530,34 +537,26 @@ defmodule Instructor do
     ]
   end
 
-  defp params_for_mode(mode, response_model, params) do
+  defp echo_response(_), do: []
+
+  defp params_for_mode(mode, response_model, params, adapter) do
     json_schema = JSONSchema.from_ecto_schema(response_model)
 
     params =
       params
       |> Keyword.update(:messages, [], fn messages ->
-        decoded_json_schema = Jason.decode!(json_schema)
+        messages =
+          case adapter do
+            Instructor.Adapters.Anthropic ->
+              messages
 
-        additional_definitions =
-          if defs = decoded_json_schema["$defs"] do
-            "\nHere are some more definitions to adhere too:\n" <> Jason.encode!(defs)
-          else
-            ""
+            _ ->
+              [sys_message(json_schema) | messages]
           end
-
-        sys_message = %{
-          role: "system",
-          content: """
-          As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
-          #{json_schema}
-
-          #{additional_definitions}
-          """
-        }
 
         case mode do
           :md_json ->
-            [sys_message | messages] ++
+            [sys_message(json_schema) | messages] ++
               [
                 %{
                   role: "assistant",
@@ -566,41 +565,75 @@ defmodule Instructor do
               ]
 
           :json ->
-            [sys_message | messages]
+            [sys_message(json_schema) | messages]
 
           :tools ->
             messages
         end
       end)
 
-    case mode do
-      :md_json ->
-        params |> Keyword.put(:stop, "```")
+    params =
+      case mode do
+        :md_json ->
+          params
 
-      :json ->
-        params
-        |> Keyword.put(:response_format, %{
-          type: "json_object"
-        })
+        # |> Keyword.put(:stop, "```")
 
-      :tools ->
-        params
-        |> Keyword.put(:tools, [
-          %{
-            type: "function",
-            function: %{
-              "description" =>
-                "Correctly extracted `Schema` with all the required parameters with correct types",
-              "name" => "Schema",
-              "parameters" => json_schema |> Jason.decode!()
+        :json ->
+          params
+          |> Keyword.put(:response_format, %{
+            type: "json_object"
+          })
+
+        :tools ->
+          params
+          |> Keyword.put(:tools, [
+            %{
+              type: "function",
+              function: %{
+                "description" =>
+                  "Correctly extracted `Schema` with all the required parameters with correct types",
+                "name" => "Schema",
+                "parameters" => json_schema |> Jason.decode!()
+              }
             }
-          }
-        ])
-        |> Keyword.put(:tool_choice, %{
-          type: "function",
-          function: %{name: "Schema"}
-        })
+          ])
+          |> Keyword.put(:tool_choice, %{
+            type: "function",
+            function: %{name: "Schema"}
+          })
+      end
+
+    case adapter do
+      Instructor.Adapters.Anthropic ->
+        params
+        |> Keyword.put(:system, sys_message(json_schema).content)
+        |> Keyword.put_new(:max_tokens, 1800)
+
+      _ ->
+        params
     end
+  end
+
+  defp sys_message(json_schema) do
+    decoded_json_schema = Jason.decode!(json_schema)
+
+    additional_definitions =
+      if defs = decoded_json_schema["$defs"] do
+        "\nHere are some more definitions to adhere too:\n" <> Jason.encode!(defs)
+      else
+        ""
+      end
+
+    %{
+      role: "system",
+      content: """
+      As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
+      #{json_schema}
+
+      #{additional_definitions}
+      """
+    }
   end
 
   defp call_validate(response_model, changeset, context) do
@@ -617,6 +650,14 @@ defmodule Instructor do
       true ->
         changeset
     end
+  end
+
+  defp adapter(config) when is_list(config) do
+    Keyword.get(
+      config,
+      :adapter,
+      Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+    )
   end
 
   defp adapter(%{adapter: adapter}) when is_atom(adapter), do: adapter
