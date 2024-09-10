@@ -263,8 +263,7 @@ defmodule Instructor do
   defp do_streaming_partial_array_chat_completion(response_model, params, config) do
     wrapped_model = %{
       value:
-        {:parameterized, Ecto.Embedded,
-         %Ecto.Embedded{cardinality: :many, related: response_model}}
+        Ecto.ParameterizedType.init(Ecto.Embedded, cardinality: :many, related: response_model)
     }
 
     params = Keyword.put(params, :response_model, wrapped_model)
@@ -334,8 +333,7 @@ defmodule Instructor do
   defp do_streaming_partial_chat_completion(response_model, params, config) do
     wrapped_model = %{
       value:
-        {:parameterized, Ecto.Embedded,
-         %Ecto.Embedded{cardinality: :one, related: response_model}}
+        Ecto.ParameterizedType.init(Ecto.Embedded, cardinality: :one, related: response_model)
     }
 
     params = Keyword.put(params, :response_model, wrapped_model)
@@ -382,8 +380,7 @@ defmodule Instructor do
   defp do_streaming_array_chat_completion(response_model, params, config) do
     wrapped_model = %{
       value:
-        {:parameterized, Ecto.Embedded,
-         %Ecto.Embedded{cardinality: :many, related: response_model}}
+        Ecto.ParameterizedType.init(Ecto.Embedded, cardinality: :many, related: response_model)
     }
 
     params = Keyword.put(params, :response_model, wrapped_model)

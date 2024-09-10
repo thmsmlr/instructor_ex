@@ -148,7 +148,7 @@ defmodule Instructor.JSONSchema do
     required = Map.keys(properties) |> Enum.sort()
 
     embedded_schemas =
-      for {_field, {:parameterized, Ecto.Embedded, %Ecto.Embedded{related: related}}} <-
+      for {_field, {:parameterized, {Ecto.Embedded, %Ecto.Embedded{related: related}}}} <-
             ecto_types,
           is_ecto_schema(related) do
         related
@@ -226,7 +226,7 @@ defmodule Instructor.JSONSchema do
   defp for_type(:utc_datetime_usec), do: %{type: "string", format: "date-time"}
 
   defp for_type(
-         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}
+         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
        )
        when is_ecto_schema(related) do
     title = title_for(related)
@@ -239,7 +239,7 @@ defmodule Instructor.JSONSchema do
   end
 
   defp for_type(
-         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}
+         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
        )
        when is_ecto_types(related) do
     properties =
@@ -260,14 +260,14 @@ defmodule Instructor.JSONSchema do
   end
 
   defp for_type(
-         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}
+         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
        )
        when is_ecto_schema(related) do
     %{"$ref": "#/$defs/#{title_for(related)}"}
   end
 
   defp for_type(
-         {:parameterized, Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}
+         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
        )
        when is_ecto_types(related) do
     properties =
@@ -284,7 +284,7 @@ defmodule Instructor.JSONSchema do
     }
   end
 
-  defp for_type({:parameterized, Ecto.Enum, %{mappings: mappings}}) do
+  defp for_type({:parameterized, {Ecto.Enum, %{mappings: mappings}}}) do
     %{
       type: "string",
       enum: Keyword.keys(mappings)
