@@ -108,7 +108,6 @@ defmodule Instructor.Adapters.OpenAI do
                   end)
 
                 for chunk <- chunks do
-                  IO.write(chunk)
                   send(pid, chunk)
                 end
 

@@ -1,9 +1,8 @@
 defmodule Instructor.Adapters.Anthropic do
   @moduledoc """
-  Adapter for Anthropic API.
+  Anthropic adapter for Instructor.
   """
   @behaviour Instructor.Adapter
-  @supported_modes [:tools]
 
   @impl true
   def chat_completion(params, user_config \\ nil) do
@@ -17,24 +16,23 @@ defmodule Instructor.Adapters.Anthropic do
     stream = Keyword.get(params, :stream, false)
     params = Enum.into(params, %{})
 
-    if mode not in @supported_modes do
-      raise "Unsupported mode: #{mode}"
-    end
+    {system_prompt, messages} = params.messages |> Enum.split_with(&(&1[:role] == "system"))
+    system_prompt = system_prompt |> Enum.map(& &1[:content]) |> Enum.join("\n")
+
+    [tool] = params.tools
+    tool = tool.function
+
+    tool =
+      tool
+      |> Map.put("input_schema", tool["parameters"])
+      |> Map.delete("parameters")
 
     params =
-      case mode do
-        :tools ->
-          Map.update!(params, :tools, fn tools ->
-            tools
-            |> Enum.map(fn tool ->
-              %{
-                name: tool.function["name"],
-                description: tool.function["description"],
-                input_schema: tool.function["parameters"]
-              }
-            end)
-          end)
-      end
+      params
+      |> Map.put(:messages, messages)
+      |> Map.put(:tools, [tool])
+      |> Map.put(:tool_choice, %{"type" => "tool", "name" => tool["name"]})
+      |> Map.put(:system, system_prompt)
 
     if stream do
       do_streaming_chat_completion(mode, params, config)
@@ -43,17 +41,12 @@ defmodule Instructor.Adapters.Anthropic do
     end
   end
 
-  @impl true
-  def reask_messages(_raw_response, params, _config) do
-    params[:messages]
-  end
-
-  defp do_chat_completion(_mode, params, config) do
-    options = http_options(config) |> Keyword.merge(json: params)
+  defp do_chat_completion(mode, params, config) do
+    options = get_anthropic_http_opts(config) |> Keyword.merge(json: params)
 
     case Req.post(url(config), options) do
       {:ok, %Req.Response{status: 200, body: body} = response} ->
-        {:ok, response, body}
+        {:ok, response, parse_response_for_mode(mode, body)}
 
       {:ok, %Req.Response{status: status, body: body}} ->
         {:error, "Unexpected HTTP response code: #{status}\n#{inspect(body)}"}
@@ -64,20 +57,97 @@ defmodule Instructor.Adapters.Anthropic do
   end
 
   defp do_streaming_chat_completion(mode, params, config) do
-    # TODO: Implement
+    pid = self()
+    options = get_anthropic_http_opts(config) |> Keyword.merge(json: params)
+
+    Stream.resource(
+      fn ->
+        Task.async(fn ->
+          options =
+            Keyword.merge(options,
+              into: fn {:data, data}, {req, resp} ->
+                chunks =
+                  data
+                  |> String.split("\n")
+                  |> Enum.filter(fn line ->
+                    String.starts_with?(line, "data: {")
+                  end)
+                  |> Enum.map(fn line ->
+                    line
+                    |> String.replace_prefix("data: ", "")
+                    |> Jason.decode!()
+                    |> then(&parse_stream_chunk_for_mode(mode, &1))
+                  end)
+
+                for chunk <- chunks do
+                  send(pid, chunk)
+                end
+
+                {:cont, {req, resp}}
+              end
+            )
+
+          Req.post!(url(config), options)
+          send(pid, :done)
+        end)
+      end,
+      fn task ->
+        receive do
+          :done ->
+            {:halt, task}
+
+          data ->
+            {[data], task}
+        after
+          15_000 ->
+            {:halt, task}
+        end
+      end,
+      fn task -> Task.await(task) end
+    )
+  end
+
+  defp get_anthropic_http_opts(config) do
+    Keyword.merge(http_options(config),
+      headers: [{"x-api-key", api_key(config)}, {"anthropic-version", " 2023-06-01"}]
+    )
+  end
+
+  defp parse_stream_chunk_for_mode(:tools, %{"type" => event})
+       when event in [
+              "message_start",
+              "ping",
+              "content_block_start",
+              "content_block_stop",
+              "message_stop",
+              "message_delta",
+              "completion"
+            ] do
+    ""
+  end
+
+  defp parse_stream_chunk_for_mode(:tools, %{
+         "type" => "content_block_delta",
+         "delta" => %{"partial_json" => delta, "type" => "input_json_delta"}
+       }) do
+    delta
+  end
+
+  defp parse_response_for_mode(:tools, %{"content" => [%{"input" => args, "type" => "tool_use"}]}) do
+    args
   end
 
   defp url(config), do: api_url(config) <> "/v1/messages"
 
   defp api_url(config), do: Keyword.fetch!(config, :api_url)
+  defp api_key(config), do: Keyword.fetch!(config, :api_key)
   defp http_options(config), do: Keyword.fetch!(config, :http_options)
+
   defp config(nil), do: config(Application.get_env(:instructor, :anthropic, []))
 
   defp config(base_config) do
     default_config = [
-      api_url: "https://api.anthropic.com",
-      api_path: "/v1/messages",
-      auth_mode: :bearer,
+      api_url: "https://api.anthropic.com/",
       http_options: [receive_timeout: 60_000]
     ]
 

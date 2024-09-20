@@ -18,6 +18,13 @@ defmodule InstructorTest do
       :ollama ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.Ollama)
 
+      :anthropic ->
+        Application.put_env(:instructor, :adapter, Instructor.Adapters.Anthropic)
+
+        Application.put_env(:instructor, :anthropic,
+          api_key: System.fetch_env!("ANTHROPIC_API_KEY")
+        )
+
       :openai ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
         Application.put_env(:instructor, :openai, api_key: System.fetch_env!("OPENAI_API_KEY"))
@@ -39,16 +46,16 @@ defmodule InstructorTest do
 
   def mock_stream_response(_, _, _), do: nil
 
-  for {adapter, mode, model} <- [
-        # {:mock_openai, :tools, "gpt-4o-mini"},
-        {:openai, :tools, "gpt-4o-mini"},
-        # {:openai, :json, "gpt-4o-mini"},
-        {:openai, :json_schema, "gpt-4o-mini"},
-        {:llamacpp, :json_schema, "llama3.1-8b-instruct"},
-        {:ollama, :tools, "llama3.1"}
-        # {:openai, :tools, "gpt-4o"}
+  for {adapter, params} <- [
+        {:mock_openai, [mode: :tools, model: "gpt-4o-mini"]},
+        {:openai, [mode: :tools, model: "gpt-4o-mini"]},
+        {:openai, [mode: :json, model: "gpt-4o-mini"]},
+        {:openai, [mode: :json_schema, model: "gpt-4o-mini"]},
+        {:llamacpp, [mode: :json_schema, model: "llama3.1-8b-instruct"]},
+        {:ollama, [mode: :tools, model: "llama3.1"]},
+        {:anthropic, [mode: :tools, model: "claude-3-5-sonnet-20240620", max_tokens: 1024]}
       ] do
-    describe "#{inspect(adapter)} #{mode} #{model}" do
+    describe "#{inspect(adapter)} #{params[:mode]} #{params[:model]}" do
       @tag adapter: adapter
       test "schemaless ecto" do
         expected = %{name: "George Washington", birth_date: ~D[1732-02-22]}
@@ -56,12 +63,12 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: unquote(model),
-            mode: unquote(mode),
-            response_model: %{name: :string, birth_date: :date},
-            messages: [
-              %{role: "user", content: "Who was the first president of the USA?"}
-            ]
+            Keyword.merge(unquote(params),
+              response_model: %{name: :string, birth_date: :date},
+              messages: [
+                %{role: "user", content: "Who was the first president of the USA?"}
+              ]
+            )
           )
 
         assert {:ok, %{name: name, birth_date: birth_date}} = result
@@ -86,16 +93,16 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: unquote(model),
-            mode: unquote(mode),
-            response_model: SpamPrediction,
-            messages: [
-              %{
-                role: "user",
-                content:
-                  "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
-              }
-            ]
+            Keyword.merge(unquote(params),
+              response_model: SpamPrediction,
+              messages: [
+                %{
+                  role: "user",
+                  content:
+                    "Classify the following text: Hello, I am a Nigerian prince and I would like to give you $1,000,000."
+                }
+              ]
+            )
           )
 
         assert {:ok, %SpamPrediction{class: :spam, score: score}} = result
@@ -153,36 +160,36 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: unquote(model),
-            mode: unquote(mode),
-            response_model: AllEctoTypes,
-            messages: [
-              %{
-                role: "user",
-                content: """
-                  Return the exact object below, nothing else.
+            Keyword.merge(unquote(params),
+              response_model: AllEctoTypes,
+              messages: [
+                %{
+                  role: "user",
+                  content: """
+                    Return the exact object below, nothing else.
 
-                  {
-                    "integer": 1,
-                    "date": "2021-08-01",
-                    "float": 1.0,
-                    "time": "12:00:00",
-                    "string": "string",
-                    "boolean": true,
-                    "array": [ "array_value" ],
-                    "decimal": 1.0,
-                    "binary_id": "binary_id",
-                    "naive_datetime": "2021-08-01T12:00:00",
-                    "naive_datetime_usec": "2021-08-01T12:00:00.000000",
-                    "utc_datetime": "2021-08-01T12:00:00Z",
-                    "utc_datetime_usec": "2021-08-01T12:00:00.000000Z",
-                    "time_usec": "12:00:00.000000",
-                    "nested_object": { "key": "value" },
-                    "nested_object_two": { "key_two": "value_two" }
-                  }
-                """
-              }
-            ]
+                    {
+                      "integer": 1,
+                      "date": "2021-08-01",
+                      "float": 1.0,
+                      "time": "12:00:00",
+                      "string": "string",
+                      "boolean": true,
+                      "array": [ "array_value" ],
+                      "decimal": 1.0,
+                      "binary_id": "binary_id",
+                      "naive_datetime": "2021-08-01T12:00:00",
+                      "naive_datetime_usec": "2021-08-01T12:00:00.000000",
+                      "utc_datetime": "2021-08-01T12:00:00Z",
+                      "utc_datetime_usec": "2021-08-01T12:00:00.000000Z",
+                      "time_usec": "12:00:00.000000",
+                      "nested_object": { "key": "value" },
+                      "nested_object_two": { "key_two": "value_two" }
+                    }
+                  """
+                }
+              ]
+            )
           )
 
         assert {:ok,
@@ -245,13 +252,13 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: unquote(model),
-            mode: unquote(mode),
-            stream: true,
-            response_model: {:array, President},
-            messages: [
-              %{role: "user", content: "What are the first 3 presidents of the United States?"}
-            ]
+            Keyword.merge(unquote(params),
+              stream: true,
+              response_model: {:array, President},
+              messages: [
+                %{role: "user", content: "What are the first 3 presidents of the United States?"}
+              ]
+            )
           )
 
         assert TestHelpers.is_stream?(result)
@@ -271,13 +278,13 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: unquote(model),
-            mode: unquote(mode),
-            stream: true,
-            response_model: {:partial, President},
-            messages: [
-              %{role: "user", content: "Who was the first president of the United States"}
-            ]
+            Keyword.merge(unquote(params),
+              stream: true,
+              response_model: {:partial, President},
+              messages: [
+                %{role: "user", content: "Who was the first president of the United States"}
+              ]
+            )
           )
 
         assert TestHelpers.is_stream?(result)
@@ -307,13 +314,13 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: unquote(model),
-            mode: unquote(mode),
-            stream: true,
-            response_model: {:partial, {:array, President}},
-            messages: [
-              %{role: "user", content: "Who were the first 2 presidents of the United States"}
-            ]
+            Keyword.merge(unquote(params),
+              stream: true,
+              response_model: {:partial, {:array, President}},
+              messages: [
+                %{role: "user", content: "Who were the first 2 presidents of the United States"}
+              ]
+            )
           )
 
         assert TestHelpers.is_stream?(result)
