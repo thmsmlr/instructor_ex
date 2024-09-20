@@ -15,6 +15,9 @@ defmodule InstructorTest do
       :llamacpp ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.Llamacpp)
 
+      :ollama ->
+        Application.put_env(:instructor, :adapter, Instructor.Adapters.Ollama)
+
       :openai ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
         Application.put_env(:instructor, :openai, api_key: System.fetch_env!("OPENAI_API_KEY"))
@@ -36,9 +39,16 @@ defmodule InstructorTest do
 
   def mock_stream_response(_, _, _), do: nil
 
-  for adapter <- [:openai_mock, :openai, :llamacpp] do
-    # for adapter <- [:openai] do
-    describe "#{inspect(adapter)}" do
+  for {adapter, mode, model} <- [
+        # {:mock_openai, :tools, "gpt-4o-mini"},
+        {:openai, :tools, "gpt-4o-mini"},
+        # {:openai, :json, "gpt-4o-mini"},
+        {:openai, :json_schema, "gpt-4o-mini"},
+        {:llamacpp, :json_schema, "llama3.1-8b-instruct"},
+        {:ollama, :tools, "llama3.1"}
+        # {:openai, :tools, "gpt-4o"}
+      ] do
+    describe "#{inspect(adapter)} #{mode} #{model}" do
       @tag adapter: adapter
       test "schemaless ecto" do
         expected = %{name: "George Washington", birth_date: ~D[1732-02-22]}
@@ -46,7 +56,8 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: "gpt-3.5-turbo",
+            model: unquote(model),
+            mode: unquote(mode),
             response_model: %{name: :string, birth_date: :date},
             messages: [
               %{role: "user", content: "Who was the first president of the USA?"}
@@ -75,7 +86,8 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: "gpt-3.5-turbo",
+            model: unquote(model),
+            mode: unquote(mode),
             response_model: SpamPrediction,
             messages: [
               %{
@@ -103,8 +115,8 @@ defmodule InstructorTest do
           field(:string, :string)
           # field(:binary, :binary)
           field(:array, {:array, :string})
-          field(:map, :map)
-          field(:map_two, {:map, :string})
+          field(:nested_object, :map)
+          field(:nested_object_two, {:map, :string})
           field(:decimal, :decimal)
           field(:date, :date)
           field(:time, :time)
@@ -125,8 +137,8 @@ defmodule InstructorTest do
           boolean: true,
           string: "string",
           array: ["array"],
-          map: %{"map" => "map"},
-          map_two: %{"map_two" => "map_two"},
+          nested_object: %{"map" => "map"},
+          nested_object_two: %{"map_two" => "map_two"},
           decimal: 1.0,
           date: "2021-08-01",
           time: "12:00:00",
@@ -141,13 +153,34 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: "gpt-3.5-turbo",
+            model: unquote(model),
+            mode: unquote(mode),
             response_model: AllEctoTypes,
             messages: [
               %{
                 role: "user",
-                content:
-                  "What are the types of the following fields: binary_id, integer, float, boolean, string, array, map, map_two, decimal, date, time, time_usec, naive_datetime, naive_datetime_usec, utc_datetime, utc_datetime_usec?"
+                content: """
+                  Return the exact object below, nothing else.
+
+                  {
+                    "integer": 1,
+                    "date": "2021-08-01",
+                    "float": 1.0,
+                    "time": "12:00:00",
+                    "string": "string",
+                    "boolean": true,
+                    "array": [ "array_value" ],
+                    "decimal": 1.0,
+                    "binary_id": "binary_id",
+                    "naive_datetime": "2021-08-01T12:00:00",
+                    "naive_datetime_usec": "2021-08-01T12:00:00.000000",
+                    "utc_datetime": "2021-08-01T12:00:00Z",
+                    "utc_datetime_usec": "2021-08-01T12:00:00.000000Z",
+                    "time_usec": "12:00:00.000000",
+                    "nested_object": { "key": "value" },
+                    "nested_object_two": { "key_two": "value_two" }
+                  }
+                """
               }
             ]
           )
@@ -160,8 +193,8 @@ defmodule InstructorTest do
                   boolean: boolean,
                   string: string,
                   array: array,
-                  map: map,
-                  map_two: map_two,
+                  nested_object: nested_object,
+                  nested_object_two: nested_object_two,
                   decimal: decimal,
                   date: date,
                   time: time,
@@ -178,8 +211,8 @@ defmodule InstructorTest do
         assert is_boolean(boolean)
         assert is_binary(string)
         assert is_list(array)
-        assert is_map(map)
-        assert is_map(map_two)
+        assert is_map(nested_object)
+        assert is_map(nested_object_two)
         assert %Decimal{} = decimal
         assert %Date{} = date
         assert %Time{} = time
@@ -212,7 +245,8 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: "gpt-3.5-turbo",
+            model: unquote(model),
+            mode: unquote(mode),
             stream: true,
             response_model: {:array, President},
             messages: [
@@ -237,7 +271,8 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: "gpt-3.5-turbo",
+            model: unquote(model),
+            mode: unquote(mode),
             stream: true,
             response_model: {:partial, President},
             messages: [
@@ -272,7 +307,8 @@ defmodule InstructorTest do
 
         result =
           Instructor.chat_completion(
-            model: "gpt-3.5-turbo",
+            model: unquote(model),
+            mode: unquote(mode),
             stream: true,
             response_model: {:partial, {:array, President}},
             messages: [
@@ -345,6 +381,7 @@ defmodule InstructorTest do
   @tag adapter: :openai_mock
   test "retry upto n times" do
     TestHelpers.mock_openai_response(:tools, %{wrong_field: "foobar"})
+    TestHelpers.mock_openai_reask_messages()
     TestHelpers.mock_openai_response(:tools, %{wrong_field: "foobar"})
 
     result =
@@ -360,7 +397,9 @@ defmodule InstructorTest do
     assert {:error, %Ecto.Changeset{valid?: false}} = result
 
     TestHelpers.mock_openai_response(:tools, %{wrong_field: "foobar"})
+    TestHelpers.mock_openai_reask_messages()
     TestHelpers.mock_openai_response(:tools, %{field: 123})
+    TestHelpers.mock_openai_reask_messages()
     TestHelpers.mock_openai_response(:tools, %{field: "foobar"})
 
     result =

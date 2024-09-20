@@ -6,8 +6,7 @@ defmodule Instructor.Adapters.Llamacpp do
   You can read more about it here:
     https://github.com/ggerganov/llama.cpp/tree/master/examples/server
   """
-  alias Instructor.JSONSchema
-  alias Instructor.GBNF
+  alias Instructor.Adapters
 
   @behaviour Instructor.Adapter
 
@@ -22,7 +21,7 @@ defmodule Instructor.Adapters.Llamacpp do
   ## Examples
 
     iex> Instructor.chat_completion(
-    ...>   model: "mistral-7b-instruct",
+    ...>   model: "llama3.1-8b-instruct",
     ...>   messages: [
     ...>     %{ role: "user", content: "Classify the following text: Hello I am a Nigerian prince and I would like to send you money!" },
     ...>   ],
@@ -31,143 +30,28 @@ defmodule Instructor.Adapters.Llamacpp do
     ...> )
   """
   @impl true
-  def chat_completion(params, _config \\ nil) do
-    {response_model, _} = Keyword.pop!(params, :response_model)
-    {messages, _} = Keyword.pop!(params, :messages)
+  def chat_completion(params, config \\ nil) do
+    mode = params[:mode]
 
-    json_schema = JSONSchema.from_ecto_schema(response_model)
-    grammar = GBNF.from_json_schema(json_schema)
-    prompt = apply_chat_template(chat_template(), messages)
-    stream = Keyword.get(params, :stream, false)
+    params =
+      case mode do
+        :json_schema ->
+          update_in(params, [:response_format], fn response_format ->
+            %{
+              type: "json_object",
+              schema: response_format.json_schema.schema
+            }
+          end)
 
-    if stream do
-      do_streaming_chat_completion(prompt, grammar)
-    else
-      do_chat_completion(prompt, grammar)
-    end
+        _ ->
+          raise "Unsupported mode: #{mode}"
+      end
+
+    default_config = [api_url: "http://localhost:8080", api_key: "llamacpp"]
+    config = Keyword.merge(default_config, config || [])
+    Adapters.OpenAI.chat_completion(params, config)
   end
 
-  defp do_streaming_chat_completion(prompt, grammar) do
-    pid = self()
-
-    Stream.resource(
-      fn ->
-        Task.async(fn ->
-          Req.post(url(),
-            json: %{
-              grammar: grammar,
-              prompt: prompt,
-              stream: true
-            },
-            receive_timeout: 60_000,
-            into: fn {:data, data}, {req, resp} ->
-              send(pid, data)
-              {:cont, {req, resp}}
-            end
-          )
-
-          send(pid, :done)
-        end)
-      end,
-      fn acc ->
-        receive do
-          :done ->
-            {:halt, acc}
-
-          "data: " <> data ->
-            data = Jason.decode!(data)
-            {[data], acc}
-        end
-      end,
-      fn acc -> acc end
-    )
-    |> Stream.map(fn %{"content" => chunk} ->
-      to_openai_streaming_response(chunk)
-    end)
-  end
-
-  defp to_openai_streaming_response(chunk) when is_binary(chunk) do
-    %{
-      "choices" => [
-        %{"delta" => %{"tool_calls" => [%{"function" => %{"arguments" => chunk}}]}}
-      ]
-    }
-  end
-
-  defp do_chat_completion(prompt, grammar) do
-    response =
-      Req.post(url(),
-        json: %{
-          grammar: grammar,
-          prompt: prompt
-        },
-        receive_timeout: 60_000
-      )
-
-    case response do
-      {:ok, %{status: 200, body: %{"content" => params}}} ->
-        {:ok, to_openai_response(params)}
-
-      {:ok, %{status: status}} ->
-        {:error, "Unexpected HTTP response code: #{status}"}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp to_openai_response(params) do
-    %{
-      "choices" => [
-        %{
-          "message" => %{
-            "tool_calls" => [
-              %{"id" => "schema", "function" => %{"name" => "schema", "arguments" => params}}
-            ]
-          }
-        }
-      ]
-    }
-  end
-
-  defp apply_chat_template(:mistral_instruct, messages) do
-    prompt =
-      messages
-      |> Enum.map_join("\n\n", fn
-        %{role: "assistant", content: content} -> "#{content} </s>"
-        %{content: content} -> "[INST] #{content} [/INST]"
-      end)
-
-    "<s>#{prompt}"
-  end
-
-  defp apply_chat_template(:tiny_llama, messages) do
-    prompt =
-      messages
-      |> Enum.map_join("\n\n", fn
-        %{role: role, content: content} -> "<|#{role}|>\n#{content} </s>"
-        %{content: content} -> "<|user|>\n#{content} </s>"
-      end)
-
-    "<s>#{prompt}"
-  end
-
-  defp url() do
-    Keyword.get(config(), :url, "http://localhost:8080/completion")
-  end
-
-  defp chat_template() do
-    Keyword.get(config(), :chat_template, :mistral_instruct)
-  end
-
-  defp config() do
-    base_config = Application.get_env(:instructor, :llamacpp, [])
-
-    default_config = [
-      chat_template: :mistral_instruct,
-      api_url: "http://localhost:8080/completion"
-    ]
-
-    Keyword.merge(default_config, base_config)
-  end
+  @impl true
+  defdelegate reask_messages(raw_response, params, config), to: Adapters.OpenAI
 end

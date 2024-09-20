@@ -37,7 +37,7 @@ defmodule Instructor.TestHelpers do
          "object" => "chat.completion",
          "created" => 1_704_579_055,
          "system_fingerprint" => nil
-       }}
+       }, result}
     end)
   end
 
@@ -68,7 +68,8 @@ defmodule Instructor.TestHelpers do
           "object" => "chat.completion",
           "created" => 1_704_579_055,
           "system_fingerprint" => nil
-        }
+        },
+        result
       }
     end)
   end
@@ -79,39 +80,8 @@ defmodule Instructor.TestHelpers do
       |> String.graphemes()
       |> Enum.chunk_every(12)
       |> Enum.map(fn chunk ->
-        chunk = Enum.join(chunk, "")
-
-        %{
-          "choices" => [
-            %{
-              "delta" => %{"tool_calls" => [%{"function" => %{"arguments" => chunk}}]},
-              "finish_reason" => nil,
-              "index" => 0,
-              "logprobs" => nil
-            }
-          ],
-          "created" => 1_704_666_072,
-          "id" => "chatcmpl-8eVo0dIB83q0IzSvrZeO4tM1CO9y8",
-          "model" => "gpt-3.5-turbo-0613",
-          "object" => "chat.completion.chunk",
-          "system_fingerprint" => nil
-        }
+        Enum.join(chunk, "")
       end)
-
-    chunks =
-      chunks ++
-        [
-          %{
-            "choices" => [
-              %{"delta" => %{}, "finish_reason" => "stop", "index" => 0, "logprobs" => nil}
-            ],
-            "created" => 1_704_666_072,
-            "id" => "chatcmpl-8eVo0dIB83q0IzSvrZeO4tM1CO9y8",
-            "model" => "gpt-3.5-turbo-0613",
-            "object" => "chat.completion.chunk",
-            "system_fingerprint" => nil
-          }
-        ]
 
     InstructorTest.MockOpenAI
     |> expect(:chat_completion, fn _params, _config ->
@@ -125,43 +95,19 @@ defmodule Instructor.TestHelpers do
       |> String.graphemes()
       |> Enum.chunk_every(12)
       |> Enum.map(fn chunk ->
-        chunk = Enum.join(chunk, "")
-
-        %{
-          "choices" => [
-            %{
-              "delta" => %{"content" => chunk},
-              "finish_reason" => nil,
-              "index" => 0,
-              "logprobs" => nil
-            }
-          ],
-          "created" => 1_704_666_072,
-          "id" => "chatcmpl-8eVo0dIB83q0IzSvrZeO4tM1CO9y8",
-          "model" => "gpt-3.5-turbo-0613",
-          "object" => "chat.completion.chunk",
-          "system_fingerprint" => nil
-        }
+        Enum.join(chunk, "")
       end)
-
-    chunks =
-      chunks ++
-        [
-          %{
-            "choices" => [
-              %{"delta" => %{}, "finish_reason" => "stop", "index" => 0, "logprobs" => nil}
-            ],
-            "created" => 1_704_666_072,
-            "id" => "chatcmpl-8eVo0dIB83q0IzSvrZeO4tM1CO9y8",
-            "model" => "gpt-3.5-turbo-0613",
-            "object" => "chat.completion.chunk",
-            "system_fingerprint" => nil
-          }
-        ]
 
     InstructorTest.MockOpenAI
     |> expect(:chat_completion, fn _params, _config ->
       chunks
+    end)
+  end
+
+  def mock_openai_reask_messages() do
+    InstructorTest.MockOpenAI
+    |> expect(:reask_messages, fn _raw_response, _params, _config ->
+      []
     end)
   end
 

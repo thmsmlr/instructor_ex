@@ -279,7 +279,6 @@ defmodule Instructor do
       end
 
     adapter(config).chat_completion(params, config)
-    |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
       fn -> {nil, []} end,
@@ -342,7 +341,6 @@ defmodule Instructor do
     params = params_for_mode(mode, wrapped_model, params)
 
     adapter(config).chat_completion(params, config)
-    |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Instructor.JSONStreamParser.parse()
     |> Stream.transform(
       fn -> nil end,
@@ -389,7 +387,6 @@ defmodule Instructor do
     params = params_for_mode(mode, wrapped_model, params)
 
     adapter(config).chat_completion(params, config)
-    |> Stream.map(&parse_stream_chunk_for_mode(mode, &1))
     |> Jaxon.Stream.from_enumerable()
     |> Jaxon.Stream.query([:root, "value", :all])
     |> Stream.map(fn params ->
@@ -425,20 +422,14 @@ defmodule Instructor do
         {%{}, response_model}
       end
 
-    with {:llm, {:ok, response}} <- {:llm, adapter(config).chat_completion(params, config)},
-         {:valid_json, {:ok, params}} <- {:valid_json, parse_response_for_mode(mode, response)},
-         changeset <- cast_all(model, params),
-         {:validation, %Ecto.Changeset{valid?: true} = changeset, _response} <-
-           {:validation, call_validate(response_model, changeset, validation_context), response} do
+    with {:ok, raw_response, params} <- do_adapter_chat_completion(params, config),
+         {%Ecto.Changeset{valid?: true} = changeset, raw_response} <-
+           {cast_all(model, params), raw_response},
+         {%Ecto.Changeset{valid?: true} = changeset, _raw_response} <-
+           {call_validate(response_model, changeset, validation_context), raw_response} do
       {:ok, changeset |> Ecto.Changeset.apply_changes()}
     else
-      {:llm, {:error, error}} ->
-        {:error, "LLM Adapter Error: #{inspect(error)}"}
-
-      {:valid_json, {:error, error}} ->
-        {:error, "Invalid JSON returned from LLM: #{inspect(error)}"}
-
-      {:validation, changeset, response} ->
+      {%Ecto.Changeset{} = changeset, raw_response} ->
         if max_retries > 0 do
           errors = Instructor.ErrorFormatter.format_errors(changeset)
 
@@ -451,7 +442,7 @@ defmodule Instructor do
             |> Keyword.put(:max_retries, max_retries - 1)
             |> Keyword.update(:messages, [], fn messages ->
               messages ++
-                echo_response(response) ++
+                reask_messages(raw_response, params, config) ++
                 [
                   %{
                     role: "system",
@@ -477,57 +468,25 @@ defmodule Instructor do
     end
   end
 
-  defp parse_response_for_mode(:md_json, %{"choices" => [%{"message" => %{"content" => content}}]}),
-       do: Jason.decode(content)
+  defp do_adapter_chat_completion(params, config) do
+    case adapter(config).chat_completion(params, config) do
+      {:ok, response, content} ->
+        {:ok, response, content}
 
-  defp parse_response_for_mode(:json, %{"choices" => [%{"message" => %{"content" => content}}]}),
-    do: Jason.decode(content)
+      {:error, reason} ->
+        {:error, "LLM Adapter Error: #{inspect(reason)}"}
+    end
+  end
 
-  defp parse_response_for_mode(:tools, %{
-         "choices" => [
-           %{"message" => %{"tool_calls" => [%{"function" => %{"arguments" => args}}]}}
-         ]
-       }),
-       do: Jason.decode(args)
+  defp reask_messages(raw_response, params, config) do
+    adp = adapter(config)
 
-  defp parse_stream_chunk_for_mode(:md_json, %{"choices" => [%{"delta" => %{"content" => chunk}}]}),
-       do: chunk
-
-  defp parse_stream_chunk_for_mode(:json, %{"choices" => [%{"delta" => %{"content" => chunk}}]}),
-    do: chunk
-
-  defp parse_stream_chunk_for_mode(:tools, %{
-         "choices" => [
-           %{"delta" => %{"tool_calls" => [%{"function" => %{"arguments" => chunk}}]}}
-         ]
-       }),
-       do: chunk
-
-  defp parse_stream_chunk_for_mode(_, %{"choices" => [%{"finish_reason" => "stop"}]}), do: ""
-
-  defp echo_response(%{
-         "choices" => [
-           %{
-             "message" =>
-               %{
-                 "tool_calls" => [
-                   %{"id" => tool_call_id, "function" => %{"name" => name, "arguments" => args}} =
-                     function
-                 ]
-               } = message
-           }
-         ]
-       }) do
-    [
-      Map.put(message, "content", function |> Jason.encode!())
-      |> Map.new(fn {k, v} -> {String.to_atom(k), v} end),
-      %{
-        role: "tool",
-        tool_call_id: tool_call_id,
-        name: name,
-        content: args
-      }
-    ]
+    if function_exported?(adp, :reask_messages, 3) do
+      adp.reask_messages(raw_response, params, config)
+    else
+      Logger.debug("Adapter #{inspect(adp)} does not implement reask_messages/3")
+      []
+    end
   end
 
   defp params_for_mode(mode, response_model, params) do
@@ -552,6 +511,8 @@ defmodule Instructor do
           #{json_schema}
 
           #{additional_definitions}
+
+          Make sure to return an instance of the JSON, not the schema itself.
           """
         }
 
@@ -568,6 +529,9 @@ defmodule Instructor do
           :json ->
             [sys_message | messages]
 
+          :json_schema ->
+            messages
+
           :tools ->
             messages
         end
@@ -581,6 +545,17 @@ defmodule Instructor do
         params
         |> Keyword.put(:response_format, %{
           type: "json_object"
+        })
+
+      :json_schema ->
+        params
+        |> Keyword.put(:response_format, %{
+          type: "json_schema",
+          json_schema: %{
+            schema: Jason.decode!(json_schema),
+            name: "schema",
+            strict: true
+          }
         })
 
       :tools ->
@@ -619,6 +594,10 @@ defmodule Instructor do
     end
   end
 
-  defp adapter(%{adapter: adapter}) when is_atom(adapter), do: adapter
-  defp adapter(_), do: Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+  defp adapter(config) do
+    case config[:adapter] do
+      nil -> Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
+      adapter -> adapter
+    end
+  end
 end
