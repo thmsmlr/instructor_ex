@@ -123,9 +123,14 @@ end
 
 ## TODO
 
-- [ ] Tests to ensure every {adapter, mode, stream} combination is tested
+- [x] Top-level array support
+- [x] Gemini
+  - [x] tools mode
+  - [ ] json mode
+  - [x] json_schema mode
 - [x] Figure out a solution for OpenAI's json_schema mode not supporting arbitrary maps.
 - [ ] Partial Schemaless doesn't work since fields are set to required in Ecto.
+
 
 - [ ] llamacpp adapter broken, needs to support openai input/output API
   - [ ] GBNF should enforce required properties on objects, currently they're optional.

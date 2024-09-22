@@ -138,6 +138,12 @@ defmodule Instructor do
       {{:array, response_model}, true} ->
         do_streaming_array_chat_completion(response_model, params, config)
 
+      {{:array, response_model}, false} ->
+        params = Keyword.put(params, :stream, true)
+
+        do_streaming_array_chat_completion(response_model, params, config)
+        |> Enum.to_list()
+
       {response_model, false} ->
         do_chat_completion(response_model, params, config)
 

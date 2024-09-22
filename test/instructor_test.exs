@@ -25,6 +25,10 @@ defmodule InstructorTest do
           api_key: System.fetch_env!("ANTHROPIC_API_KEY")
         )
 
+      :gemini ->
+        Application.put_env(:instructor, :adapter, Instructor.Adapters.Gemini)
+        Application.put_env(:instructor, :gemini, api_key: System.fetch_env!("GOOGLE_API_KEY"))
+
       :openai ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
         Application.put_env(:instructor, :openai, api_key: System.fetch_env!("OPENAI_API_KEY"))
@@ -52,6 +56,7 @@ defmodule InstructorTest do
         {:openai, [mode: :json, model: "gpt-4o-mini"]},
         {:openai, [mode: :json_schema, model: "gpt-4o-mini"]},
         {:llamacpp, [mode: :json_schema, model: "llama3.1-8b-instruct"]},
+        {:gemini, [mode: :json_schema, model: "gemini-1.5-flash-latest"]},
         {:ollama, [mode: :tools, model: "llama3.1"]},
         {:anthropic, [mode: :tools, model: "claude-3-5-sonnet-20240620", max_tokens: 1024]}
       ] do

@@ -6,6 +6,7 @@ defmodule Instructor.Adapters.OpenAI do
   @supported_modes [:tools, :json, :md_json, :json_schema]
 
   alias Instructor.JSONSchema
+  alias Instructor.SSEStreamParser
 
   @impl true
   def chat_completion(params, user_config \\ nil) do
@@ -94,23 +95,7 @@ defmodule Instructor.Adapters.OpenAI do
               auth_header(config),
               json: params,
               into: fn {:data, data}, {req, resp} ->
-                chunks =
-                  data
-                  |> String.split("\n")
-                  |> Enum.filter(fn line ->
-                    String.starts_with?(line, "data: {")
-                  end)
-                  |> Enum.map(fn line ->
-                    line
-                    |> String.replace_prefix("data: ", "")
-                    |> Jason.decode!()
-                    |> then(&parse_stream_chunk_for_mode(mode, &1))
-                  end)
-
-                for chunk <- chunks do
-                  send(pid, chunk)
-                end
-
+                send(pid, data)
                 {:cont, {req, resp}}
               end
             ])
@@ -133,6 +118,8 @@ defmodule Instructor.Adapters.OpenAI do
       end,
       fn task -> Task.await(task) end
     )
+    |> SSEStreamParser.parse()
+    |> Stream.map(fn chunk -> parse_stream_chunk_for_mode(mode, chunk) end)
   end
 
   defp do_chat_completion(mode, params, config) do
