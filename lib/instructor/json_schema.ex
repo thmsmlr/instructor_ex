@@ -130,6 +130,7 @@ defmodule Instructor.JSONSchema do
       %{
         title: title,
         type: "object",
+        additionalProperties: false,
         required: required,
         properties: properties,
         description: fetch_ecto_schema_doc(ecto_schema) || ""
@@ -164,6 +165,7 @@ defmodule Instructor.JSONSchema do
       %{
         title: "root",
         type: "object",
+        additionalProperties: false,
         required: required,
         properties: properties
       }
@@ -200,30 +202,77 @@ defmodule Instructor.JSONSchema do
 
   defp find_all_values(_, _pred), do: []
 
-  defp for_type(:id), do: %{type: "integer"}
+  defp for_type(:id), do: %{type: "integer", description: "Integer, e.g. 1"}
   defp for_type(:binary_id), do: %{type: "string"}
-  defp for_type(:integer), do: %{type: "integer"}
-  defp for_type(:float), do: %{type: "number", format: "float"}
-  defp for_type(:boolean), do: %{type: "boolean"}
-  defp for_type(:string), do: %{type: "string"}
+  defp for_type(:integer), do: %{type: "integer", description: "Integer, e.g. 1"}
+  defp for_type(:float), do: %{type: "number", description: "Float, e.g. 1.27", format: "float"}
+  defp for_type(:boolean), do: %{type: "boolean", description: "Boolean, e.g. true"}
+  defp for_type(:string), do: %{type: "string", description: "String, e.g. 'hello'"}
   # defp for_type(:binary), do: %{type: "unsupported"}
   defp for_type({:array, type}), do: %{type: "array", items: for_type(type)}
-  defp for_type(:map), do: %{type: "object", additionalProperties: %{}}
+
+  defp for_type(:map),
+    do: %{
+      type: "object",
+      properties: %{},
+      additionalProperties: false,
+      description: "An object with arbitrary keys and values, e.g. { key: value }"
+    }
 
   defp for_type({:map, type}),
-    do: %{type: "object", additionalProperties: for_type(type)}
+    do: %{
+      type: "object",
+      properties: %{},
+      additionalProperties: for_type(type),
+      description: "An object with values of a type #{inspect(type)}, e.g. { key: value }"
+    }
 
   defp for_type(:decimal), do: %{type: "number", format: "float"}
-  defp for_type(:date), do: %{type: "string", format: "date"}
-  defp for_type(:time), do: %{type: "string", pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"}
+
+  defp for_type(:date),
+    do: %{type: "string", description: "ISO8601 Date, e.g. \"2024-07-20\"", format: "date"}
+
+  defp for_type(:time),
+    do: %{
+      type: "string",
+      description: "ISO8601 Time, e.g. \"12:00:00\"",
+      pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"
+    }
 
   defp for_type(:time_usec),
-    do: %{type: "string", pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"}
+    do: %{
+      type: "string",
+      description: "ISO8601 Time with microseconds, e.g. \"12:00:00.000000\"",
+      pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"
+    }
 
-  defp for_type(:naive_datetime), do: %{type: "string", format: "date-time"}
-  defp for_type(:naive_datetime_usec), do: %{type: "string", format: "date-time"}
-  defp for_type(:utc_datetime), do: %{type: "string", format: "date-time"}
-  defp for_type(:utc_datetime_usec), do: %{type: "string", format: "date-time"}
+  defp for_type(:naive_datetime),
+    do: %{
+      type: "string",
+      description: "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00\"",
+      format: "date-time"
+    }
+
+  defp for_type(:naive_datetime_usec),
+    do: %{
+      type: "string",
+      description: "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000\"",
+      format: "date-time"
+    }
+
+  defp for_type(:utc_datetime),
+    do: %{
+      type: "string",
+      description: "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00Z\"",
+      format: "date-time"
+    }
+
+  defp for_type(:utc_datetime_usec),
+    do: %{
+      type: "string",
+      description: "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000Z\"",
+      format: "date-time"
+    }
 
   defp for_type(
          {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
@@ -280,7 +329,8 @@ defmodule Instructor.JSONSchema do
     %{
       type: "object",
       required: required,
-      properties: properties
+      properties: properties,
+      additionalProperties: false
     }
   end
 
@@ -298,4 +348,34 @@ defmodule Instructor.JSONSchema do
       raise "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/0` via `use Instructor.EctoType`"
     end
   end
+
+  @doc """
+  Traverses a tree structure of maps and lists, allowing the user to update or remove elements.
+
+  ## Parameters
+    - tree: The tree structure to traverse (can be a map, list, or any other type)
+    - fun: A function that takes an element and returns either:
+      - An updated element
+      - nil to remove the element
+      - The original element if no changes are needed
+
+  ## Returns
+    The updated tree structure
+  """
+  def traverse_and_update(tree, fun) when is_map(tree) do
+    tree
+    |> Enum.map(fn {k, v} -> {k, traverse_and_update(v, fun)} end)
+    |> Enum.filter(fn {_, v} -> v != nil end)
+    |> Enum.into(%{})
+    |> fun.()
+  end
+
+  def traverse_and_update(tree, fun) when is_list(tree) do
+    tree
+    |> Enum.map(fn elem -> traverse_and_update(elem, fun) end)
+    |> Enum.filter(&(&1 != nil))
+    |> fun.()
+  end
+
+  def traverse_and_update(tree, fun), do: fun.(tree)
 end

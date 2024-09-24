@@ -1,0 +1,144 @@
+<!-- livebook:{"file_entries":[{"name":"receipt.jpg","type":"attachment"}],"persist_outputs":true} -->
+
+# Extracting data from images of Receipts
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: Path.expand("../../", __DIR__)},
+    {:kino, "~> 0.12.3"}
+  ],
+  config: [
+    instructor: [
+      adapter: Instructor.Adapters.OpenAI,
+      openai: [
+        api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
+        http_options: [receive_timeout: 60_000, connect_options: [protocols: [:http2]]]
+      ]
+    ]
+  ]
+)
+```
+
+## Our Object Model
+
+```elixir
+image = Kino.FS.file_path("receipt.jpg") |> File.read!()
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+<<255, 216, 255, 224, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 255, 226, 2, 40, 73, 67,
+  67, 95, 80, 82, 79, 70, 73, 76, 69, 0, 1, 1, 0, 0, 2, 24, 0, 0, 0, 0, 2, 16, 0, 0, ...>>
+```
+
+We can look at the image of the receipt and outline the fields that we want to extract using an Ecto schema, as shown below.
+
+```elixir
+defmodule Receipt do
+  use Ecto.Schema
+  use Instructor.Validator
+  
+  import Ecto.Changeset
+
+  @primary_key false
+  embedded_schema do
+    field(:total, :decimal)
+    field(:subtotal, :decimal)
+
+    embeds_many :items, Item do
+      field(:name, :string)
+      field(:price, :decimal)
+      field(:quantity, :integer)
+    end
+  end
+
+  @impl true
+  def validate_changeset(changeset) do
+    changeset
+    |> validate_required([:total, :subtotal])
+    |> validate_items_total()
+  end
+
+  defp validate_items_total(changeset) do
+    items = get_field(changeset, :items) || []
+    subtotal = get_field(changeset, :subtotal)
+
+    items_total = Enum.reduce(items, Decimal.new(0), fn item, acc ->
+      item_total = Decimal.mult(item.price, Decimal.new(item.quantity))
+      Decimal.add(acc, item_total)
+    end)
+
+    if Decimal.equal?(items_total, subtotal) do
+      changeset
+    else
+      add_error(changeset, :subtotal, """
+        Subtotal does not match sum of item prices. 
+        Subtotal is #{subtotal} and items total is #{items_total}")
+      """)
+    end
+  end
+end
+
+Kino.nothing()
+```
+
+## Validating the Subtotal
+
+Notice how we used the `validate_changeset` callback to check that the items we extract sum up to the subtotal on the receipt. This process allows us to gain confidence that the OCR application is functioning correctly. In fact, later on, we can even use the re-ask feature of the instructor to have the LLM correct any errors itself.
+
+## Calling the LLM
+
+```elixir
+base64_image = "data:image/jpeg;base64," <> Base.encode64(image)
+
+{:ok, receipt} = Instructor.chat_completion(
+  model: "gpt-4o",
+  response_model: Receipt,
+  messages: [
+    %{
+      role: "user",
+      content: [
+        %{
+          type: "image_url",
+          image_url: %{url: base64_image}
+        },
+        %{
+          type: "text",
+          text: "Analyze the image and return the items in the receipt and the total amount."
+        }
+      ]
+    }
+  ]
+)
+
+Kino.Layout.grid([Kino.Image.new(image, :jpeg), receipt], columns: 2, boxed: true)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%Receipt{
+  total: Decimal.new("107.6"),
+  subtotal: Decimal.new("107.6"),
+  items: [
+    %Receipt.Item{id: "1", name: "Lorem ipsum", price: Decimal.new("9.2"), quantity: 1},
+    %Receipt.Item{id: "2", name: "Lorem ipsum dolor sit", price: Decimal.new("19.2"), quantity: 1},
+    %Receipt.Item{
+      id: "3",
+      name: "Lorem ipsum dolor sit amet",
+      price: Decimal.new("15"),
+      quantity: 1
+    },
+    %Receipt.Item{id: "4", name: "Lorem ipsum", price: Decimal.new("15"), quantity: 1},
+    %Receipt.Item{id: "5", name: "Lorem ipsum", price: Decimal.new("15"), quantity: 1},
+    %Receipt.Item{id: "6", name: "Lorem ipsum dolor sit", price: Decimal.new("15"), quantity: 1},
+    %Receipt.Item{id: "7", name: "Lorem ipsum", price: Decimal.new("19.2"), quantity: 1}
+  ]
+}
+```
+
+Now, we simply using Instructor to call gpt-4o with the base64 encoded image and the response model, and we can get back the results. We can have confidence that the results returned match all of our validations, and we've reduced the effects of any hallucinations.
+
+<!-- livebook:{"offset":4113,"stamp":{"token":"XCP.6Dv_hfb2HrmE0CxqiUM5VVSXHMy2yhhNDqQbHZTfXY_NVgTcaLJ9IfMgMrFwfN6IswLDn8XqjunoPIcdMIMay8a_U7v3JMUuPvPmEE6gpwbkKuHlr-mhtiQ","version":2}} -->
