@@ -116,7 +116,9 @@ defmodule Instructor.MixProject do
       {:req, "~> 0.5 or ~> 1.0"},
       {:jaxon, "~> 2.0"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
-      {:mox, "~> 1.1.0", only: :test}
+      {:mox, "~> 1.1.0", only: :test},
+      {:phoenix, "~> 1.7", only: :test},
+      {:phoenix_live_view, "~> 0.20.17", only: :test}
     ]
   end
 end

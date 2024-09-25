@@ -16,5 +16,6 @@ defmodule Instructor.SSEStreamParser do
         Jason.decode!(json_string)
       end)
     end)
+    # |> Stream.each(&IO.inspect/1)
   end
 end

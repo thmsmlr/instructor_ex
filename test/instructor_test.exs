@@ -18,6 +18,10 @@ defmodule InstructorTest do
       :ollama ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.Ollama)
 
+      :groq ->
+        Application.put_env(:instructor, :adapter, Instructor.Adapters.Groq)
+        Application.put_env(:instructor, :groq, api_key: System.fetch_env!("GROQ_API_KEY"))
+
       :anthropic ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.Anthropic)
 
@@ -56,6 +60,7 @@ defmodule InstructorTest do
         {:openai, [mode: :json, model: "gpt-4o-mini"]},
         {:openai, [mode: :json_schema, model: "gpt-4o-mini"]},
         {:llamacpp, [mode: :json_schema, model: "llama3.1-8b-instruct"]},
+        {:groq, [mode: :tools, model: "llama3-groq-8b-8192-tool-use-preview"]},
         {:gemini, [mode: :json_schema, model: "gemini-1.5-flash-latest"]},
         {:ollama, [mode: :tools, model: "llama3.1"]},
         {:anthropic, [mode: :tools, model: "claude-3-5-sonnet-20240620", max_tokens: 1024]}

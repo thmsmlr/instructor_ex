@@ -123,26 +123,12 @@ end
 
 ## TODO
 
-- [x] Top-level array support
-- [x] Gemini
-  - [x] tools mode
-  - [ ] json mode
-  - [x] json_schema mode
-- [x] Figure out a solution for OpenAI's json_schema mode not supporting arbitrary maps.
 - [ ] Partial Schemaless doesn't work since fields are set to required in Ecto.
-
-
-- [ ] llamacpp adapter broken, needs to support openai input/output API
-  - [ ] GBNF should enforce required properties on objects, currently they're optional.
-  - [ ] GBNF limit the number of digits in number tokens -- small models can sometimes run off to infinit digits
-- [ ] Add instructor tests against llamacpp interface using mocks, there's non-trivial logic in there
+- [ ] Groq adapter
+- [ ] ChainOfThought doesn't work with max_retries
 - [ ] Logging for Distillation / Finetuning
 - [ ] Add a Bumblebee adapter
-- [ ] Add llamacpp_ex adapter
 - [ ] Support naked ecto types by auto-wrapping, not just maps of ecto types, do not wrap if we don't need to... Current codepaths are muddled
-- [x] Support Streaming
-  - [ ] Verify schemaless support `{:array, %{name: :string}}`
-  - [ ] Support typespec style support for array streaming `[MySchema]`
 - [ ] Optional/Maybe types
 - [ ] Add Livebook Tutorials, include in Hexdocs
     - [x] Text Classification
@@ -160,7 +146,6 @@ end
     - [ ] Multi-File Code Generation
     - [ ] PII Data Sanitizatiommersed
 - [x] Update hexdocs homepage to include example for tutorial
-- [ ] Setup Github CI for testing, add badge to README
 
 ## Blog Posts
 

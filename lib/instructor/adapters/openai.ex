@@ -180,10 +180,15 @@ defmodule Instructor.Adapters.OpenAI do
 
   defp parse_stream_chunk_for_mode(:tools, %{
          "choices" => [
-           %{"delta" => %{"content" => chunk}}
+           %{"delta" => delta}
          ]
-       }),
-       do: chunk
+       }) do
+    case delta do
+      nil -> ""
+      %{} -> ""
+      %{"content" => chunk} -> chunk
+    end
+  end
 
   defp parse_stream_chunk_for_mode(_, %{"choices" => [%{"finish_reason" => "stop"}]}), do: ""
 
