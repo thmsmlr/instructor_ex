@@ -1,4 +1,5 @@
 defmodule Instructor.JSONSchema do
+  require Logger
   defguardp is_ecto_schema(mod) when is_atom(mod)
   defguardp is_ecto_types(types) when is_map(types)
 
@@ -61,7 +62,11 @@ defmodule Instructor.JSONSchema do
             false
         end)
 
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.warning(
+          "Error fetching documentation for #{ecto_schema}. The JSON schema for this model might be incomplete.\n#{inspect(reason)}"
+        )
+
         nil
     end
   end
