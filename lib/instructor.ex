@@ -589,11 +589,11 @@ defmodule Instructor do
       not is_ecto_schema(response_model) ->
         changeset
 
-      function_exported?(response_model, :validate_changeset, 1) ->
-        response_model.validate_changeset(changeset)
-
       function_exported?(response_model, :validate_changeset, 2) ->
         response_model.validate_changeset(changeset, context)
+
+      function_exported?(response_model, :validate_changeset, 1) ->
+        response_model.validate_changeset(changeset)
 
       true ->
         changeset

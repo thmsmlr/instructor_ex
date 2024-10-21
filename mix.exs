@@ -111,10 +111,11 @@ defmodule Instructor.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:flint, "~> 0.4"},
+      {:ecto, "~> 3.12"},
       {:jason, "~> 1.4.0"},
       {:req, "~> 0.5 or ~> 1.0"},
       {:jaxon, "~> 2.0"},
+      {:flint, "~> 0.4", optional: true},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:mox, "~> 1.1.0", only: :test},
       {:phoenix, "~> 1.7", only: :test},
