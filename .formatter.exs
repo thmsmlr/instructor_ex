@@ -1,6 +1,6 @@
 # Used by "mix format"
 [
-  import_deps: [:flint, :phoenix, :phoenix_live_view],
+  import_deps: [:ecto, :flint, :phoenix, :phoenix_live_view],
   plugins: [Phoenix.LiveView.HTMLFormatter],
   inputs: [
     "{mix,.formatter}.exs",
