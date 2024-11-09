@@ -238,6 +238,10 @@ defmodule Instructor.Adapters.Gemini do
     Jason.decode(text)
   end
 
+  defp parse_response_for_mode(mode, response) do
+    {:error, "Unsupported Gemini mode #{mode} with response #{inspect(response)}"}
+  end
+
   defp parse_stream_chunk_for_mode(
          :tools,
          %{
