@@ -124,7 +124,8 @@ end
 ## TODO
 
 - [ ] Partial Schemaless doesn't work since fields are set to required in Ecto.
-- [ ] Groq adapter
+- [x] Groq adapter
+- [ ] @doc gets stripped in release, find a workaround
 - [ ] ChainOfThought doesn't work with max_retries
 - [ ] Logging for Distillation / Finetuning
 - [ ] Add a Bumblebee adapter

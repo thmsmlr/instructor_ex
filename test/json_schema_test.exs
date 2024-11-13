@@ -2,6 +2,7 @@ Code.compiler_options(ignore_module_conflict: true, docs: true, debug_info: true
 
 defmodule JSONSchemaTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
 
   alias Instructor.JSONSchema
 
@@ -23,11 +24,16 @@ defmodule JSONSchemaTest do
       %{
         "description" => "",
         "properties" => %{
-          "string" => %{"title" => "string", "type" => "string"}
+          "string" => %{
+            "title" => "string",
+            "type" => "string",
+            "description" => "String, e.g. 'hello'"
+          }
         },
         "required" => ["string"],
         "title" => "JSONSchemaTest.Demo",
-        "type" => "object"
+        "type" => "object",
+        "additionalProperties" => false
       }
 
     assert json_schema == expected_json_schema
@@ -49,10 +55,17 @@ defmodule JSONSchemaTest do
 
     expected_json_schema = %{
       "description" => "",
-      "properties" => %{"string" => %{"title" => "string", "type" => "string"}},
+      "properties" => %{
+        "string" => %{
+          "title" => "string",
+          "type" => "string",
+          "description" => "String, e.g. 'hello'"
+        }
+      },
       "required" => ["string"],
       "title" => "JSONSchemaTest.Demo",
-      "type" => "object"
+      "type" => "object",
+      "additionalProperties" => false
     }
 
     assert json_schema == expected_json_schema
@@ -66,13 +79,50 @@ defmodule JSONSchemaTest do
     expected_json_schema =
       %{
         "description" => "Hello world\n",
-        "properties" => %{"string" => %{"title" => "string", "type" => "string"}},
+        "properties" => %{
+          "string" => %{
+            "title" => "string",
+            "type" => "string",
+            "description" => "String, e.g. 'hello'"
+          }
+        },
         "required" => ["string"],
         "title" => "InstructorTest.DemoWithDocumentation",
-        "type" => "object"
+        "type" => "object",
+        "additionalProperties" => false
       }
 
     assert json_schema == expected_json_schema
+  end
+
+  test "issues deprecation warning for schema with @doc but no @llm_doc" do
+    log =
+      capture_log(fn ->
+        JSONSchema.from_ecto_schema(InstructorTest.DemoWithDocumentation)
+      end)
+      |> String.downcase()
+      |> String.trim()
+
+    assert log =~ String.downcase("using Ecto Schemas with the @doc attribute is deprecated")
+  end
+
+  test "include new documentation using @llm_doc" do
+    defmodule Demo do
+      use Instructor
+      use Ecto.Schema
+
+      @llm_doc "Hello world"
+      @primary_key false
+      embedded_schema do
+        field(:string, :string)
+      end
+    end
+
+    json_schema =
+      JSONSchema.from_ecto_schema(Demo)
+      |> Jason.decode!()
+
+    assert json_schema["description"] == "Hello world"
   end
 
   test "basic types" do
@@ -109,52 +159,100 @@ defmodule JSONSchemaTest do
     expected_json_schema = %{
       "description" => "",
       "properties" => %{
-        "array" => %{"items" => %{"type" => "string"}, "title" => "array", "type" => "array"},
-        "boolean" => %{"title" => "boolean", "type" => "boolean"},
-        "date" => %{"title" => "date", "type" => "string", "format" => "date"},
-        "decimal" => %{"format" => "float", "title" => "decimal", "type" => "number"},
-        "float" => %{"format" => "float", "title" => "float", "type" => "number"},
-        "integer" => %{"title" => "integer", "type" => "integer"},
+        "array" => %{
+          "items" => %{
+            "type" => "string",
+            "description" => "String, e.g. 'hello'"
+          },
+          "title" => "array",
+          "type" => "array"
+        },
+        "boolean" => %{
+          "title" => "boolean",
+          "type" => "boolean",
+          "description" => "Boolean, e.g. true"
+        },
+        "date" => %{
+          "format" => "date",
+          "title" => "date",
+          "type" => "string",
+          "description" => "ISO8601 Date, e.g. \"2024-07-20\""
+        },
+        "decimal" => %{
+          "format" => "float",
+          "title" => "decimal",
+          "type" => "number"
+        },
+        "float" => %{
+          "format" => "float",
+          "title" => "float",
+          "type" => "number",
+          "description" => "Float, e.g. 1.27"
+        },
+        "integer" => %{
+          "title" => "integer",
+          "type" => "integer",
+          "description" => "Integer, e.g. 1"
+        },
         "map" => %{
-          "additionalProperties" => %{},
+          "additionalProperties" => false,
           "title" => "map",
-          "type" => "object"
+          "type" => "object",
+          "description" => "An object with arbitrary keys and values, e.g. { key: value }",
+          "properties" => %{}
         },
         "map_two" => %{
-          "additionalProperties" => %{"type" => "string"},
+          "additionalProperties" => %{
+            "type" => "string",
+            "description" => "String, e.g. 'hello'"
+          },
           "title" => "map_two",
-          "type" => "object"
+          "type" => "object",
+          "description" => "An object with values of a type :string, e.g. { key: value }",
+          "properties" => %{}
         },
         "naive_datetime" => %{
+          "format" => "date-time",
           "title" => "naive_datetime",
           "type" => "string",
-          "format" => "date-time"
+          "description" => "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00\""
         },
         "naive_datetime_usec" => %{
+          "format" => "date-time",
           "title" => "naive_datetime_usec",
           "type" => "string",
-          "format" => "date-time"
+          "description" =>
+            "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000\""
         },
-        "string" => %{"title" => "string", "type" => "string"},
+        "string" => %{
+          "description" => "String, e.g. 'hello'",
+          "title" => "string",
+          "type" => "string"
+        },
         "time" => %{
+          "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$",
           "title" => "time",
           "type" => "string",
-          "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"
+          "description" => "ISO8601 Time, e.g. \"12:00:00\""
         },
         "time_usec" => %{
+          "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$",
           "title" => "time_usec",
           "type" => "string",
-          "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"
+          "description" => "ISO8601 Time with microseconds, e.g. \"12:00:00.000000\""
         },
         "utc_datetime" => %{
+          "format" => "date-time",
           "title" => "utc_datetime",
           "type" => "string",
-          "format" => "date-time"
+          "description" => "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00Z\""
         },
         "utc_datetime_usec" => %{
+          "format" => "date-time",
           "title" => "utc_datetime_usec",
           "type" => "string",
-          "format" => "date-time"
+          "description" =>
+            "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000Z\""
         }
       },
       "required" => [
@@ -175,7 +273,8 @@ defmodule JSONSchemaTest do
         "utc_datetime_usec"
       ],
       "title" => "JSONSchemaTest.Demo",
-      "type" => "object"
+      "type" => "object",
+      "additionalProperties" => false
     }
 
     assert json_schema == expected_json_schema
@@ -208,19 +307,30 @@ defmodule JSONSchemaTest do
       "$defs" => %{
         "JSONSchemaTest.Embedded" => %{
           "description" => "",
-          "properties" => %{"string" => %{"title" => "string", "type" => "string"}},
+          "properties" => %{
+            "string" => %{
+              "title" => "string",
+              "type" => "string",
+              "description" => "String, e.g. 'hello'"
+            }
+          },
           "required" => ["string"],
           "title" => "JSONSchemaTest.Embedded",
-          "type" => "object"
+          "type" => "object",
+          "additionalProperties" => false
         }
       },
       "description" => "",
       "properties" => %{
-        "embedded" => %{"$ref" => "#/$defs/JSONSchemaTest.Embedded", "title" => "embedded"}
+        "embedded" => %{
+          "$ref" => "#/$defs/JSONSchemaTest.Embedded",
+          "title" => "embedded"
+        }
       },
       "required" => ["embedded"],
       "title" => "JSONSchemaTest.Demo",
-      "type" => "object"
+      "type" => "object",
+      "additionalProperties" => false
     }
 
     assert json_schema == expected_json_schema
@@ -253,22 +363,36 @@ defmodule JSONSchemaTest do
           "JSONSchemaTest.Child" => %{
             "description" => "",
             "properties" => %{
-              "id" => %{"title" => "id", "type" => "integer"},
-              "string" => %{"title" => "string", "type" => "string"}
+              "id" => %{
+                "title" => "id",
+                "type" => "integer",
+                "description" => "Integer, e.g. 1"
+              },
+              "string" => %{
+                "title" => "string",
+                "type" => "string",
+                "description" => "String, e.g. 'hello'"
+              }
             },
             "required" => ["id", "string"],
             "title" => "JSONSchemaTest.Child",
-            "type" => "object"
+            "type" => "object",
+            "additionalProperties" => false
           }
         },
         "description" => "",
         "properties" => %{
           "child" => %{"$ref" => "#/$defs/JSONSchemaTest.Child"},
-          "id" => %{"title" => "id", "type" => "integer"}
+          "id" => %{
+            "title" => "id",
+            "type" => "integer",
+            "description" => "Integer, e.g. 1"
+          }
         },
         "required" => ["child", "id"],
         "title" => "JSONSchemaTest.Demo",
-        "type" => "object"
+        "type" => "object",
+        "additionalProperties" => false
       }
 
     assert json_schema == expected_json_schema
@@ -300,12 +424,21 @@ defmodule JSONSchemaTest do
         "JSONSchemaTest.Child" => %{
           "description" => "",
           "properties" => %{
-            "id" => %{"title" => "id", "type" => "integer"},
-            "string" => %{"title" => "string", "type" => "string"}
+            "id" => %{
+              "title" => "id",
+              "type" => "integer",
+              "description" => "Integer, e.g. 1"
+            },
+            "string" => %{
+              "title" => "string",
+              "type" => "string",
+              "description" => "String, e.g. 'hello'"
+            }
           },
           "required" => ["id", "string"],
           "title" => "JSONSchemaTest.Child",
-          "type" => "object"
+          "type" => "object",
+          "additionalProperties" => false
         }
       },
       "description" => "",
@@ -315,11 +448,16 @@ defmodule JSONSchemaTest do
           "title" => "JSONSchemaTest.Child",
           "type" => "array"
         },
-        "id" => %{"title" => "id", "type" => "integer"}
+        "id" => %{
+          "title" => "id",
+          "type" => "integer",
+          "description" => "Integer, e.g. 1"
+        }
       },
       "required" => ["children", "id"],
       "title" => "JSONSchemaTest.Demo",
-      "type" => "object"
+      "type" => "object",
+      "additionalProperties" => false
     }
 
     assert json_schema == expected_json_schema
@@ -349,23 +487,33 @@ defmodule JSONSchemaTest do
       "properties" => %{
         "value" => %{
           "properties" => %{
-            "name" => %{"type" => "string"},
             "children" => %{
               "items" => %{
-                "properties" => %{"name" => %{"type" => "string"}},
+                "properties" => %{
+                  "name" => %{
+                    "type" => "string",
+                    "description" => "String, e.g. 'hello'"
+                  }
+                },
                 "required" => ["name"],
                 "type" => "object"
               },
               "type" => "array"
+            },
+            "name" => %{
+              "type" => "string",
+              "description" => "String, e.g. 'hello'"
             }
           },
           "required" => ["children", "name"],
-          "type" => "object"
+          "type" => "object",
+          "additionalProperties" => false
         }
       },
       "required" => ["value"],
+      "title" => "root",
       "type" => "object",
-      "title" => "root"
+      "additionalProperties" => false
     }
 
     assert json_schema == expected_json_schema

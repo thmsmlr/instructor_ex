@@ -1,4 +1,5 @@
 defmodule Instructor.JSONSchema do
+  require Logger
   defguardp is_ecto_schema(mod) when is_atom(mod)
   defguardp is_ecto_types(types) when is_map(types)
 
@@ -9,6 +10,8 @@ defmodule Instructor.JSONSchema do
     it will not necessarily be optimal, nor support all Ecto types.
   """
   def from_ecto_schema(ecto_schema) do
+    do_deprecation_warning(ecto_schema)
+
     defs =
       for schema <- bfs_from_ecto_schema([ecto_schema], %MapSet{}), into: %{} do
         {schema.title, schema}
@@ -47,7 +50,42 @@ defmodule Instructor.JSONSchema do
     |> Jason.encode!()
   end
 
+  defp do_deprecation_warning(response_model) do
+    is_ecto = is_ecto_schema(response_model)
+    has_old_doc = fetch_old_ecto_schema_doc(response_model) != nil
+    has_new_doc = fetch_new_ecto_schema_doc(response_model) != nil
+
+    if is_ecto and has_old_doc and not has_new_doc do
+      Logger.warning("""
+      Using Ecto Schemas with the @doc attribute is deprecated.
+
+      Please change your schema to include `use Instructor` and use the `@llm_doc` attribute to
+      define your schema documentation you'd like to send to the LLM.
+      """)
+
+      true
+    else
+      false
+    end
+  end
+
   defp fetch_ecto_schema_doc(ecto_schema) when is_ecto_schema(ecto_schema) do
+    fetch_new_ecto_schema_doc(ecto_schema) || fetch_old_ecto_schema_doc(ecto_schema)
+  end
+
+  defp fetch_ecto_schema_doc(_), do: nil
+
+  defp fetch_new_ecto_schema_doc(ecto_schema) when is_ecto_schema(ecto_schema) do
+    if function_exported?(ecto_schema, :__llm_doc__, 0) do
+      ecto_schema.__llm_doc__()
+    else
+      nil
+    end
+  end
+
+  defp fetch_new_ecto_schema_doc(_), do: nil
+
+  defp fetch_old_ecto_schema_doc(ecto_schema) when is_ecto_schema(ecto_schema) do
     ecto_schema_struct_literal = "%#{title_for(ecto_schema)}{}"
 
     case Code.fetch_docs(ecto_schema) do
@@ -65,6 +103,8 @@ defmodule Instructor.JSONSchema do
         nil
     end
   end
+
+  defp fetch_old_ecto_schema_doc(_), do: nil
 
   defp bfs_from_ecto_schema([], _seen_schemas), do: []
 

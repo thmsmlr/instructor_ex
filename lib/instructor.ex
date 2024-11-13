@@ -606,4 +606,19 @@ defmodule Instructor do
       adapter -> adapter
     end
   end
+
+  defmacro __using__(_opts) do
+    quote do
+      use Instructor.Validator
+
+      Module.register_attribute(__MODULE__, :llm_doc, persist: true, accumulate: true)
+
+      def __llm_doc__ do
+        case __MODULE__.__info__(:attributes)[:llm_doc] do
+          [doc | _] -> doc
+          _ -> nil
+        end
+      end
+    end
+  end
 end

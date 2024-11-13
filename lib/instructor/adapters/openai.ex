@@ -86,6 +86,7 @@ defmodule Instructor.Adapters.OpenAI do
   defp do_streaming_chat_completion(mode, params, config) do
     pid = self()
     options = http_options(config)
+    ref = make_ref()
 
     Stream.resource(
       fn ->
@@ -95,28 +96,28 @@ defmodule Instructor.Adapters.OpenAI do
               auth_header(config),
               json: params,
               into: fn {:data, data}, {req, resp} ->
-                send(pid, data)
+                send(pid, {ref, data})
                 {:cont, {req, resp}}
               end
             ])
 
           Req.post(url(config), options)
-          send(pid, :done)
+          send(pid, {ref, :done})
         end)
       end,
       fn task ->
         receive do
-          :done ->
+          {^ref, :done} ->
             {:halt, task}
 
-          data ->
+          {^ref, data} ->
             {[data], task}
         after
           15_000 ->
             {:halt, task}
         end
       end,
-      fn task -> Task.await(task) end
+      fn task -> Task.await(task, :infinity) end
     )
     |> SSEStreamParser.parse()
     |> Stream.map(fn chunk -> parse_stream_chunk_for_mode(mode, chunk) end)
@@ -219,6 +220,7 @@ defmodule Instructor.Adapters.OpenAI do
     default_config = [
       api_url: "https://api.openai.com",
       api_path: "/v1/chat/completions",
+      api_key: System.get_env("OPENAI_API_KEY"),
       auth_mode: :bearer,
       http_options: [receive_timeout: 60_000]
     ]
