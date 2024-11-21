@@ -51,6 +51,9 @@ defmodule Instructor.JSONSchema do
     ecto_schema_struct_literal = "%#{title_for(ecto_schema)}{}"
 
     case Code.fetch_docs(ecto_schema) do
+      {:docs_v1, _, :elixir, _, %{"en" => module_doc}, _, _} ->
+        module_doc
+
       {_, _, _, _, _, _, docs} ->
         docs
         |> Enum.find_value(fn
@@ -72,12 +75,41 @@ defmodule Instructor.JSONSchema do
        when is_ecto_schema(ecto_schema) do
     seen_schemas = MapSet.put(seen_schemas, ecto_schema)
 
+    field_docs =
+      try do
+        ecto_schema.__schema__(:extra_options)
+        |> Enum.map(fn {field, opts} ->
+          {field, Keyword.get(opts, :doc, "")}
+        end)
+      rescue
+        _ ->
+          []
+      end
+
     properties =
       ecto_schema.__schema__(:fields)
       |> Enum.map(fn field ->
         type = ecto_schema.__schema__(:type, field)
+        field_doc = Keyword.get(field_docs, field, "") |> String.trim()
         value = for_type(type)
-        value = Map.merge(%{title: Atom.to_string(field)}, value)
+
+        value =
+          Map.merge(%{title: Atom.to_string(field)}, value)
+          |> Map.update(:description, field_doc, fn desc ->
+            field_doc =
+              cond do
+                field_doc == "" ->
+                  ""
+
+                String.ends_with?(field_doc, ".") ->
+                  field_doc <> " "
+
+                true ->
+                  field_doc <> ". "
+              end
+
+            field_doc <> desc
+          end)
 
         {field, value}
       end)

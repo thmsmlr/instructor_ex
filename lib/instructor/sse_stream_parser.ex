@@ -1,4 +1,5 @@
 defmodule Instructor.SSEStreamParser do
+  require Logger
   @moduledoc false
 
   def parse(stream) do
@@ -16,6 +17,5 @@ defmodule Instructor.SSEStreamParser do
         Jason.decode!(json_string)
       end)
     end)
-    # |> Stream.each(&IO.inspect/1)
   end
 end
