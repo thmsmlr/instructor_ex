@@ -536,10 +536,10 @@ defmodule Instructor do
             [sys_message | messages]
 
           :json_schema ->
-            messages
+            [sys_message | messages]
 
           :tools ->
-            messages
+            [sys_message | messages]
         end
       end)
 
