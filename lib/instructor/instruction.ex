@@ -1,4 +1,17 @@
 if Code.ensure_loaded?(Flint.Schema) do
+  defmodule Instructor.Union do
+    use Flint.Type, extends: Flint.Types.Union
+    @behaviour Instructor.EctoType
+    import Instructor.EctoType
+
+    @impl true
+    def to_json_schema(%{types: types}) when is_list(types) do
+      %{
+        "oneOf" => Enum.map(types, &Instructor.EctoType.for_type/1)
+      }
+    end
+  end
+
   defmodule Instructor.Instruction do
     use Flint.Extension
 
@@ -16,21 +29,34 @@ if Code.ensure_loaded?(Flint.Schema) do
     defmacro __using__(_opts) do
       quote do
         use Instructor.Validator
-        require EEx
+        alias Instructor.Union
 
         def render_template(assigns) do
           EEx.eval_string(__MODULE__.__schema__(:template), assigns: assigns)
         end
 
         def chat_completion(messages, opts \\ []) do
-          opts =
-            Keyword.validate!(opts,
-              stream: __MODULE__.__schema__(:stream),
-              validation_context: __MODULE__.__schema__(:validation_context),
-              mode: __MODULE__.__schema__(:mode),
-              max_retries: __MODULE__.__schema__(:max_retries),
-              model: __MODULE__.__schema__(:model)
-            )
+          {stream, opts} = Keyword.pop(opts, :stream, __MODULE__.__schema__(:stream))
+
+          {validation_context, opts} =
+            Keyword.pop(opts, :validation_context, __MODULE__.__schema__(:validation_context))
+
+          {mode, opts} = Keyword.pop(opts, :mode, __MODULE__.__schema__(:mode))
+
+          {max_retries, opts} =
+            Keyword.pop(opts, :max_retries, __MODULE__.__schema__(:max_retries))
+
+          {model, opts} = Keyword.pop(opts, :model, __MODULE__.__schema__(:model))
+
+          settings =
+            [
+              stream: stream,
+              validation_context: validation_context,
+              mode: mode,
+              max_retries: max_retries,
+              model: model
+            ]
+            |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
           messages = if Keyword.keyword?(messages), do: [messages], else: messages
 
@@ -62,7 +88,8 @@ if Code.ensure_loaded?(Flint.Schema) do
           response_model =
             if __MODULE__.__schema__(:array), do: {:array, __MODULE__}, else: __MODULE__
 
-          opts = ([messages: messages, response_model: response_model] ++ opts)
+          opts = [messages: messages, response_model: response_model] ++ settings ++ opts
+
           Instructor.chat_completion(opts)
         end
 

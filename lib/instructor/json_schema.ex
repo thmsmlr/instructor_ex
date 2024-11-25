@@ -1,6 +1,5 @@
 defmodule Instructor.JSONSchema do
-  defguardp is_ecto_schema(mod) when is_atom(mod)
-  defguardp is_ecto_types(types) when is_map(types)
+  import Instructor.EctoType
 
   @doc """
     Generates a JSON Schema from an Ecto schema.
@@ -205,9 +204,6 @@ defmodule Instructor.JSONSchema do
     [schema | bfs_from_ecto_schema(rest, seen_schemas)]
   end
 
-  defp title_for(ecto_schema) when is_ecto_schema(ecto_schema) do
-    to_string(ecto_schema) |> String.trim_leading("Elixir.")
-  end
 
   # Find all values in a map or list that match a predicate
   defp find_all_values(map, pred) when is_map(map) do
@@ -233,153 +229,6 @@ defmodule Instructor.JSONSchema do
   end
 
   defp find_all_values(_, _pred), do: []
-
-  defp for_type(:id), do: %{type: "integer", description: "Integer, e.g. 1"}
-  defp for_type(:binary_id), do: %{type: "string"}
-  defp for_type(:integer), do: %{type: "integer", description: "Integer, e.g. 1"}
-  defp for_type(:float), do: %{type: "number", description: "Float, e.g. 1.27", format: "float"}
-  defp for_type(:boolean), do: %{type: "boolean", description: "Boolean, e.g. true"}
-  defp for_type(:string), do: %{type: "string", description: "String, e.g. 'hello'"}
-  # defp for_type(:binary), do: %{type: "unsupported"}
-  defp for_type({:array, type}), do: %{type: "array", items: for_type(type)}
-
-  defp for_type(:map),
-    do: %{
-      type: "object",
-      properties: %{},
-      additionalProperties: false,
-      description: "An object with arbitrary keys and values, e.g. { key: value }"
-    }
-
-  defp for_type({:map, type}),
-    do: %{
-      type: "object",
-      properties: %{},
-      additionalProperties: for_type(type),
-      description: "An object with values of a type #{inspect(type)}, e.g. { key: value }"
-    }
-
-  defp for_type(:decimal), do: %{type: "number", format: "float"}
-
-  defp for_type(:date),
-    do: %{type: "string", description: "ISO8601 Date, e.g. \"2024-07-20\"", format: "date"}
-
-  defp for_type(:time),
-    do: %{
-      type: "string",
-      description: "ISO8601 Time, e.g. \"12:00:00\"",
-      pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"
-    }
-
-  defp for_type(:time_usec),
-    do: %{
-      type: "string",
-      description: "ISO8601 Time with microseconds, e.g. \"12:00:00.000000\"",
-      pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"
-    }
-
-  defp for_type(:naive_datetime),
-    do: %{
-      type: "string",
-      description: "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00\"",
-      format: "date-time"
-    }
-
-  defp for_type(:naive_datetime_usec),
-    do: %{
-      type: "string",
-      description: "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000\"",
-      format: "date-time"
-    }
-
-  defp for_type(:utc_datetime),
-    do: %{
-      type: "string",
-      description: "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00Z\"",
-      format: "date-time"
-    }
-
-  defp for_type(:utc_datetime_usec),
-    do: %{
-      type: "string",
-      description: "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000Z\"",
-      format: "date-time"
-    }
-
-  defp for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
-       )
-       when is_ecto_schema(related) do
-    title = title_for(related)
-
-    %{
-      items: %{"$ref": "#/$defs/#{title}"},
-      title: title,
-      type: "array"
-    }
-  end
-
-  defp for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
-       )
-       when is_ecto_types(related) do
-    properties =
-      for {field, type} <- related, into: %{} do
-        {field, for_type(type)}
-      end
-
-    required = Map.keys(properties) |> Enum.sort()
-
-    %{
-      items: %{
-        type: "object",
-        required: required,
-        properties: properties
-      },
-      type: "array"
-    }
-  end
-
-  defp for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
-       )
-       when is_ecto_schema(related) do
-    %{"$ref": "#/$defs/#{title_for(related)}"}
-  end
-
-  defp for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
-       )
-       when is_ecto_types(related) do
-    properties =
-      for {field, type} <- related, into: %{} do
-        {field, for_type(type)}
-      end
-
-    required = Map.keys(properties) |> Enum.sort()
-
-    %{
-      type: "object",
-      required: required,
-      properties: properties,
-      additionalProperties: false
-    }
-  end
-
-  defp for_type({:parameterized, {Ecto.Enum, %{mappings: mappings}}}) do
-    %{
-      type: "string",
-      enum: Keyword.keys(mappings)
-    }
-  end
-
-  defp for_type(mod) do
-    if function_exported?(mod, :to_json_schema, 0) do
-      mod.to_json_schema()
-    else
-      raise "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/0` via `use Instructor.EctoType`"
-    end
-  end
 
   @doc """
   Traverses a tree structure of maps and lists, allowing the user to update or remove elements.

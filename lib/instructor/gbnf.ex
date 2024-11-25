@@ -39,6 +39,8 @@ defmodule Instructor.GBNF do
   ws01 ::= ([ \\t\\n])?
   """
 
+  import Instructor.EctoType
+
   @doc """
   Convert a JSONSchema to a GBNF grammar to be used with llama.cpp
 
