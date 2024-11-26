@@ -1,8 +1,7 @@
-if Code.ensure_loaded?(Flint.Schema) do
+if Code.ensure_loaded!(Flint.Schema) do
   defmodule Instructor.Union do
     use Flint.Type, extends: Flint.Types.Union
     @behaviour Instructor.EctoType
-    import Instructor.EctoType
 
     @impl true
     def to_json_schema(%{types: types}) when is_list(types) do
@@ -48,6 +47,8 @@ if Code.ensure_loaded?(Flint.Schema) do
 
           {model, opts} = Keyword.pop(opts, :model, __MODULE__.__schema__(:model))
 
+          {config, opts} = Keyword.split(opts,[:api_key, :api_url, :http_options])
+
           settings =
             [
               stream: stream,
@@ -90,7 +91,7 @@ if Code.ensure_loaded?(Flint.Schema) do
 
           opts = [messages: messages, response_model: response_model] ++ settings ++ opts
 
-          Instructor.chat_completion(opts)
+          Instructor.chat_completion(opts, config)
         end
 
         @impl true
