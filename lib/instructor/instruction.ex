@@ -1,4 +1,4 @@
-if Code.ensure_loaded!(Flint.Schema) do
+if Code.ensure_loaded?(Flint.Schema) do
   defmodule Instructor.Union do
     use Flint.Type, extends: Flint.Types.Union
     @behaviour Instructor.EctoType
@@ -47,7 +47,7 @@ if Code.ensure_loaded!(Flint.Schema) do
 
           {model, opts} = Keyword.pop(opts, :model, __MODULE__.__schema__(:model))
 
-          {config, opts} = Keyword.split(opts,[:api_key, :api_url, :http_options])
+          {config, opts} = Keyword.split(opts, [:api_key, :api_url, :http_options])
 
           settings =
             [

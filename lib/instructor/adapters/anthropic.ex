@@ -3,6 +3,10 @@ defmodule Instructor.Adapters.Anthropic do
   Anthropic adapter for Instructor.
   """
   @behaviour Instructor.Adapter
+  @default_config [
+    api_url: "https://api.anthropic.com/",
+    http_options: [receive_timeout: 60_000]
+  ]
 
   alias Instructor.SSEStreamParser
 
@@ -131,14 +135,9 @@ defmodule Instructor.Adapters.Anthropic do
   defp api_key(config), do: Keyword.fetch!(config, :api_key)
   defp http_options(config), do: Keyword.fetch!(config, :http_options)
 
-  defp config(nil), do: config(Application.get_env(:instructor, :anthropic, []))
-
-  defp config(base_config) do
-    default_config = [
-      api_url: "https://api.anthropic.com/",
-      http_options: [receive_timeout: 60_000]
-    ]
-
-    Keyword.merge(default_config, base_config)
+  defp config(base_config \\ nil) do
+    @default_config
+    |> Keyword.merge(Application.get_env(:anthropic, :openai, []))
+    |> Keyword.merge(base_config)
   end
 end

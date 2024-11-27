@@ -107,9 +107,9 @@ defmodule Instructor.EctoType do
     }
 
   def for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
-       )
-       when is_ecto_schema(related) do
+        {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
+      )
+      when is_ecto_schema(related) do
     title = title_for(related)
 
     %{
@@ -120,9 +120,9 @@ defmodule Instructor.EctoType do
   end
 
   def for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
-       )
-       when is_ecto_types(related) do
+        {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
+      )
+      when is_ecto_types(related) do
     properties =
       for {field, type} <- related, into: %{} do
         {field, for_type(type)}
@@ -141,16 +141,16 @@ defmodule Instructor.EctoType do
   end
 
   def for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
-       )
-       when is_ecto_schema(related) do
+        {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
+      )
+      when is_ecto_schema(related) do
     %{"$ref": "#/$defs/#{title_for(related)}"}
   end
 
   def for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
-       )
-       when is_ecto_types(related) do
+        {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
+      )
+      when is_ecto_types(related) do
     properties =
       for {field, type} <- related, into: %{} do
         {field, for_type(type)}

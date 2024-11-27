@@ -8,6 +8,13 @@ defmodule Instructor.Adapters.OpenAI do
   alias Instructor.JSONSchema
   alias Instructor.SSEStreamParser
 
+  @default_config [
+    api_url: "https://api.openai.com",
+    api_path: "/v1/chat/completions",
+    auth_mode: :bearer,
+    http_options: [receive_timeout: 60_000]
+  ]
+
   @impl true
   def chat_completion(params, user_config \\ nil) do
     config = config(user_config)
@@ -213,16 +220,9 @@ defmodule Instructor.Adapters.OpenAI do
 
   defp http_options(config), do: Keyword.fetch!(config, :http_options)
 
-  defp config(nil), do: config(Application.get_env(:instructor, :openai, []))
-
-  defp config(base_config) do
-    default_config = [
-      api_url: "https://api.openai.com",
-      api_path: "/v1/chat/completions",
-      auth_mode: :bearer,
-      http_options: [receive_timeout: 60_000]
-    ]
-
-    Keyword.merge(default_config, base_config)
+  defp config(base_config \\ nil) do
+    @default_config
+    |> Keyword.merge(Application.get_env(:instructor, :openai, []))
+    |> Keyword.merge(base_config)
   end
 end
