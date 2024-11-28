@@ -92,9 +92,7 @@ config :instructor, adapter: Instructor.Adapters.Llamacpp
 config :instructor, :llamacpp,
     chat_template: :mistral_instruct,
     api_url: "http://localhost:8080/completion"
-````
-
-<!-- Docs -->
+```
 
 ## Installation
 
@@ -120,6 +118,8 @@ def project do
   ]
 end
 ```
+
+<!-- Docs -->
 
 ## TODO
 
