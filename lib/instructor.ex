@@ -573,10 +573,10 @@ defmodule Instructor do
             [sys_message | messages]
 
           :json_schema ->
-            messages
+            [sys_message | messages]
 
           :tools ->
-            messages
+            [sys_message | messages]
         end
       end)
 
@@ -641,6 +641,21 @@ defmodule Instructor do
     case config[:adapter] do
       nil -> Application.get_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
       adapter -> adapter
+    end
+  end
+
+  defmacro __using__(_opts) do
+    quote do
+      use Instructor.Validator
+
+      Module.register_attribute(__MODULE__, :llm_doc, persist: true, accumulate: true)
+
+      def __llm_doc__ do
+        case __MODULE__.__info__(:attributes)[:llm_doc] do
+          [doc | _] -> doc
+          _ -> nil
+        end
+      end
     end
   end
 end
