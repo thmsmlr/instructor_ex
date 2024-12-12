@@ -1,21 +1,51 @@
 defmodule Instructor.SSEStreamParser do
   @moduledoc false
 
+  # Yuk, but it works
   def parse(stream) do
     stream
-    |> Stream.transform("", fn
-      data, acc ->
-        {chunks, [remaining]} = (acc <> data) |> String.split("\n", trim: false) |> Enum.split(-1)
-        {chunks, remaining}
+    |> Stream.transform(
+      fn -> "" end,
+      fn
+        chunk, acc ->
+          {chunks, [remaining]} =
+            (acc <> chunk)
+            |> String.split("\n", trim: false)
+            |> Enum.split(-1)
+
+          {chunks, remaining}
+      end,
+      fn acc -> {[acc], nil} end,
+      fn _acc -> nil end
+    )
+    |> Stream.filter(fn line -> line != "" end)
+    |> Stream.transform(
+      fn -> {:root, ""} end,
+      fn
+        "data: [DONE]" <> _, {:root, ""} ->
+          {:halt, {:root, ""}}
+
+        "data: " <> data, {:root, ""} ->
+          {[{:ok, Jason.decode!(data)}], {:root, ""}}
+
+        line, {_, acc} ->
+          {[], {:json, acc <> line}}
+      end,
+      fn
+        {:json, acc} ->
+          {[{:error, Jason.decode!(acc)}], {:root, ""}}
+
+        {:root, ""} ->
+          {[], {:root, ""}}
+      end,
+      fn _acc -> nil end
+    )
+    |> Stream.map(fn
+      {:ok, data} ->
+        data
+
+      {:error, error} ->
+        raise "Error from LLM: #{inspect(error)}"
     end)
-    |> Stream.flat_map(fn chunk ->
-      chunk
-      |> String.split("data: ")
-      |> Enum.filter(&String.starts_with?(&1, "{"))
-      |> Enum.map(fn json_string ->
-        Jason.decode!(json_string)
-      end)
-    end)
-    # |> Stream.each(&IO.inspect/1)
   end
 end

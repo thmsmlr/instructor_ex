@@ -114,10 +114,10 @@ defmodule Instructor.Adapters.OpenAI do
             {[data], task}
         after
           15_000 ->
-            {:halt, task}
+            raise "Timeout waiting for LLM call to receive streaming data"
         end
       end,
-      fn task -> Task.await(task, :infinity) end
+      fn _ -> nil end
     )
     |> SSEStreamParser.parse()
     |> Stream.map(fn chunk -> parse_stream_chunk_for_mode(mode, chunk) end)

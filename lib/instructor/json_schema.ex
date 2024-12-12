@@ -242,6 +242,7 @@ defmodule Instructor.JSONSchema do
 
   defp find_all_values(_, _pred), do: []
 
+  defp for_type(:any), do: %{}
   defp for_type(:id), do: %{type: "integer", description: "Integer, e.g. 1"}
   defp for_type(:binary_id), do: %{type: "string"}
   defp for_type(:integer), do: %{type: "integer", description: "Integer, e.g. 1"}
