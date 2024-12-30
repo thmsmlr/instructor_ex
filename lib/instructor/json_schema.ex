@@ -99,7 +99,11 @@ defmodule Instructor.JSONSchema do
             false
         end)
 
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.warning(
+          "Error fetching documentation for #{ecto_schema}. The JSON schema for this model might be incomplete.\n#{inspect(reason)}"
+        )
+
         nil
     end
   end
