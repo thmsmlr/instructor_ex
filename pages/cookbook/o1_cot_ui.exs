@@ -47,6 +47,7 @@ defmodule DemoLive do
     pid = self()
 
     selected_model = socket.assigns.selected_model
+
     response_model =
       socket.assigns.output_schema
       |> Enum.map(fn {key, type} -> {String.to_atom(key), type} end)

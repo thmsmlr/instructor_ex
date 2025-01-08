@@ -223,6 +223,6 @@ defmodule Instructor.Adapters.OpenAI do
   defp config(base_config \\ nil) do
     @default_config
     |> Keyword.merge(Application.get_env(:instructor, :openai, []))
-    |> Keyword.merge(base_config)
+    |> Keyword.merge(base_config || [])
   end
 end

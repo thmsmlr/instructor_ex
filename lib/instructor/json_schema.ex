@@ -204,7 +204,6 @@ defmodule Instructor.JSONSchema do
     [schema | bfs_from_ecto_schema(rest, seen_schemas)]
   end
 
-
   # Find all values in a map or list that match a predicate
   defp find_all_values(map, pred) when is_map(map) do
     map

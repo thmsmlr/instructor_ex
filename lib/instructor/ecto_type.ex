@@ -34,6 +34,7 @@ defmodule Instructor.EctoType do
   end
 
   def for_type(:any), do: %{}
+  def for_type(nil), do: %{type: "null"}
   def for_type(:id), do: %{type: "integer", description: "Integer, e.g. 1"}
   def for_type(:binary_id), do: %{type: "string"}
   def for_type(:integer), do: %{type: "integer", description: "Integer, e.g. 1"}
