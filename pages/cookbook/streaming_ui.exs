@@ -114,7 +114,6 @@ defmodule StreamingUILive do
         image_url
 
       {:error, error} ->
-        IO.inspect(error)
         nil
     end
   end

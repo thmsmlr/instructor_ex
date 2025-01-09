@@ -85,16 +85,30 @@ defmodule Instructor.JSONSchema do
           []
       end
 
+    field_patterns =
+      try do
+        ecto_schema.__schema__(:extra_options)
+        |> Enum.map(fn {field, opts} ->
+          {field, Keyword.get(opts, :format)}
+        end)
+      rescue
+        _ ->
+          []
+      end
+
     properties =
       ecto_schema.__schema__(:fields)
       |> Enum.map(fn field ->
         type = ecto_schema.__schema__(:type, field)
         field_doc = Keyword.get(field_docs, field, "") |> String.trim()
+        field_pattern = Keyword.get(field_patterns, field)
         value = for_type(type)
 
         value =
           Map.merge(%{title: Atom.to_string(field)}, value)
-          |> Map.update(:description, field_doc, fn desc ->
+
+        value = if field_doc != "" do
+          Map.update(value, :description, field_doc, fn desc ->
             field_doc =
               cond do
                 field_doc == "" ->
@@ -109,6 +123,16 @@ defmodule Instructor.JSONSchema do
 
             field_doc <> desc
           end)
+        else
+          value
+        end
+
+        value =
+          if type == :string && match?(%Regex{}, field_pattern) do
+            Map.put(value, :pattern, Regex.source(field_pattern))
+          else
+            value
+          end
 
         {field, value}
       end)

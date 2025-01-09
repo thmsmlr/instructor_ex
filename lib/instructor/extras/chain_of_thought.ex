@@ -98,7 +98,6 @@ defmodule Instructor.Extras.ChainOfThought do
               {[step], acc}
 
             {:error, reason} ->
-              IO.inspect(reason, label: "ERROR")
               {:halt, {params, step_count}}
           end
       end,
