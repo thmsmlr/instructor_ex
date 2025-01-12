@@ -34,6 +34,8 @@ defmodule Instructor do
     * `:mode` - The mode to use when parsing the response, :tools, :json, :md_json (defaults to `:tools`), generally speaking you don't need to change this unless you are not using OpenAI.
     * `:max_retries` - The maximum number of times to retry the LLM call if it fails, or does not pass validations.
                        (defaults to `0`)
+    * `:instructor_role` - The role to use in system messages. Defaults to `"system"`.
+                           Some models, such as OpenAI's o1 series, require the role to be `"developer"`.
 
   ## Examples
 
@@ -126,6 +128,7 @@ defmodule Instructor do
       params
       |> Keyword.put_new(:max_retries, 0)
       |> Keyword.put_new(:mode, :tools)
+      |> Keyword.put_new(:instructor_role, "system")
 
     is_stream = Keyword.get(params, :stream, false)
     response_model = Keyword.fetch!(params, :response_model)
@@ -453,7 +456,7 @@ defmodule Instructor do
                 reask_messages(raw_response, params, config) ++
                 [
                   %{
-                    role: "system",
+                    role: Keyword.get(params, :instructor_role, "system"),
                     content: """
                     The response did not pass validation. Please try again and fix the following validation errors:\n
 
@@ -513,7 +516,7 @@ defmodule Instructor do
           end
 
         sys_message = %{
-          role: "system",
+          role: Keyword.get(params, :instructor_role, "system"),
           content: """
           As a genius expert, your task is to understand the content and provide the parsed objects in json that match the following json_schema:\n
           #{json_schema}
