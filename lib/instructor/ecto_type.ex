@@ -115,7 +115,8 @@ defmodule Instructor.EctoType do
 
     %{
       items: %{"$ref": "#/$defs/#{title}"},
-      title: title,
+      # From OpenAI error: $ref cannot have keywords {'title'}
+      # title: title,
       type: "array"
     }
   end
@@ -175,7 +176,7 @@ defmodule Instructor.EctoType do
   end
 
   def for_type({:parameterized, {mod, params}}) do
-    if function_exported?(mod, :to_json_schema, 1) do
+    if Code.ensure_loaded?(mod) && function_exported?(mod, :to_json_schema, 1) do
       mod.to_json_schema(params)
     else
       raise "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/1` via `use Instructor.EctoType`"
@@ -183,7 +184,7 @@ defmodule Instructor.EctoType do
   end
 
   def for_type(mod) do
-    if function_exported?(mod, :to_json_schema, 0) do
+    if Code.ensure_loaded?(mod) && function_exported?(mod, :to_json_schema, 0) do
       mod.to_json_schema()
     else
       raise "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/0` via `use Instructor.EctoType`"

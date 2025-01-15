@@ -1,21 +1,13 @@
-defmodule Instructor.Union do
-  use Flint.Type, extends: Flint.Types.Union
-  @behaviour Instructor.EctoType
-
-  @impl true
-  def to_json_schema(%{types: types}) when is_list(types) do
-    %{
-      "oneOf" => Enum.map(types, &Instructor.EctoType.for_type/1)
-    }
-  end
-end
-
 defmodule Instructor.Instruction do
   use Flint.Extension
 
   attribute :stream, default: false, validator: &is_boolean/1
   attribute :validation_context, default: %{}, validator: &is_map/1
-  attribute :mode, default: :tools, validator: &Kernel.in(&1, [:tools, :json, :md_json])
+
+  attribute :mode,
+    default: :structured_output,
+    validator: &Kernel.in(&1, [:tools, :json, :md_json, :structured_output, :json_schema])
+
   attribute :max_retries, default: 0, validator: &is_integer/1
   attribute :system_prompt, validator: &is_binary/1
   attribute :model, validator: &is_binary/1
@@ -35,7 +27,7 @@ defmodule Instructor.Instruction do
       |> Enum.map(fn {field, opts} -> {field, Keyword.get(opts, :llm_verify)} end)
       |> Enum.reject(fn
         {_k, nil} -> true
-        other -> false
+        _ -> false
       end)
 
     for {field, quoted_statement} <- quoted_statements, reduce: changeset do
@@ -59,48 +51,81 @@ defmodule Instructor.Instruction do
     end
   end
 
-  defmacro __using__(_opts) do
+  def pop_from_any(keywords, key, default \\ nil) do
+    index = Enum.find_index(keywords, &Keyword.has_key?(&1, key))
+
+    if is_nil(index) do
+      {default, keywords}
+    else
+      {value, new_kw_list} = Enum.at(keywords, index) |> Keyword.pop!(key)
+      {value, List.replace_at(keywords, index, new_kw_list)}
+    end
+  end
+
+  defmacro __using__(opts) do
+    template_engine = Keyword.get(opts, :template_engine) |> Macro.expand_literals(__CALLER__)
+
     quote do
       use Instructor.Validator
       alias Instructor.Union
 
-      def render_template(assigns) do
-        EEx.eval_string(__MODULE__.__schema__(:template), assigns: assigns)
+      def render_template(template, assigns) do
+        case unquote(template_engine) do
+          nil ->
+            EEx.eval_string(template, assigns: assigns)
+
+          {mod, fun} = engine ->
+            apply(mod, fun, [template, assigns])
+        end
       end
 
       def chat_completion(messages, opts \\ []) do
-        {stream, opts} = Keyword.pop(opts, :stream, __MODULE__.__schema__(:stream))
+        {[messages, opts], params} =
+          Enum.reduce(
+            [
+              :stream,
+              :validation_context,
+              :template,
+              :mode,
+              :max_retries,
+              :model,
+              :system_prompt,
+              :array,
+              :api_key,
+              :api_url,
+              :http_options,
+              :adapter,
+              :after_request
+            ],
+            {[messages, opts], []},
+            fn key, {kwords, bindings} ->
+              default =
+                case __MODULE__.__schema__(key) do
+                  {:error, _} ->
+                    nil
 
-        {validation_context, messages, opts} =
-          cond do
-            Keyword.has_key?(opts, :validation_context) ->
-              {validation_context, opts} = Keyword.pop!(opts, :validation_context)
-              {validation_context, messages, opts}
+                  other ->
+                    other
+                end
 
-            Keyword.has_key?(messages, :validation_context) ->
-              {validation_context, messages} = Keyword.pop!(messages, :validation_context)
-              {validation_context, messages, opts}
+              {value, kwords} =
+                Instructor.Instruction.pop_from_any(kwords, key, default)
 
-            true ->
-              {__MODULE__.__schema__(:validation_context), messages, opts}
-          end
+              {kwords, [{key, value} | bindings]}
+            end
+          )
 
-        {mode, opts} = Keyword.pop(opts, :mode, __MODULE__.__schema__(:mode))
-
-        {max_retries, opts} =
-          Keyword.pop(opts, :max_retries, __MODULE__.__schema__(:max_retries))
-
-        {model, opts} = Keyword.pop(opts, :model, __MODULE__.__schema__(:model))
-
-        {config, opts} = Keyword.split(opts, [:api_key, :api_url, :http_options])
+        config =
+          Keyword.take(params, [:api_key, :api_url, :http_options, :adapter])
+          |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
         settings =
           [
-            stream: stream,
-            validation_context: validation_context,
-            mode: mode,
-            max_retries: max_retries,
-            model: model
+            stream: params[:stream],
+            validation_context: params[:validation_context],
+            mode: params[:mode],
+            max_retries: params[:max_retries],
+            model: params[:model]
           ]
           |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
@@ -116,8 +141,8 @@ defmodule Instructor.Instruction do
                 %{
                   role: "user",
                   content:
-                    if(__MODULE__.__schema__(:template),
-                      do: render_template(message),
+                    if(params[:template],
+                      do: render_template(params[:template], message),
                       else: message
                     )
                 }
@@ -125,16 +150,18 @@ defmodule Instructor.Instruction do
           end
 
         messages =
-          if __MODULE__.__schema__(:system_prompt) do
-            [%{role: "system", content: __MODULE__.__schema__(:system_prompt)} | messages]
+          if params[:system_prompt] do
+            [%{role: "system", content: params[:system_prompt]} | messages]
           else
             messages
           end
 
         response_model =
-          if __MODULE__.__schema__(:array), do: {:array, __MODULE__}, else: __MODULE__
+          if params[:array], do: {:array, __MODULE__}, else: __MODULE__
 
-        opts = [messages: messages, response_model: response_model] ++ settings ++ opts
+        opts =
+          [messages: messages, response_model: response_model, after_request: params[:after_request]] ++ settings ++ opts
+
         Instructor.chat_completion(opts, config)
       end
 
@@ -145,7 +172,10 @@ defmodule Instructor.Instruction do
         |> changeset(changeset, Enum.into(context, []))
       end
 
-      defoverridable validate_changeset: 1, validate_changeset: 2
+      defoverridable validate_changeset: 1,
+                     validate_changeset: 2,
+                     chat_completion: 1,
+                     chat_completion: 2
     end
   end
 end

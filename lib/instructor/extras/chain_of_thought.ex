@@ -97,7 +97,7 @@ defmodule Instructor.Extras.ChainOfThought do
 
               {[step], acc}
 
-            {:error, reason} ->
+            {:error, _reason} ->
               {:halt, {params, step_count}}
           end
       end,

@@ -32,6 +32,8 @@ defmodule Instructor do
     * `:mode` - The mode to use when parsing the response, :tools, :json, :md_json (defaults to `:tools`), generally speaking you don't need to change this unless you are not using OpenAI.
     * `:max_retries` - The maximum number of times to retry the LLM call if it fails, or does not pass validations.
                        (defaults to `0`)
+    * `:after_request` - A callback function that will take in the current `%Ecto.Changeset{}` along with the raw `%Req.Response{}` returned
+        from the adapter. This can be helpful with tracking metadata or usage information, such as rate-limit headers and token usage.
 
   ## Examples
 
@@ -130,22 +132,38 @@ defmodule Instructor do
 
     case {response_model, is_stream} do
       {{:partial, {:array, response_model}}, true} ->
-        do_streaming_partial_array_chat_completion(response_model, params, config)
+        do_streaming_partial_array_chat_completion(
+          response_model.__struct__() |> Ecto.Changeset.change(),
+          params,
+          config
+        )
 
       {{:partial, response_model}, true} ->
-        do_streaming_partial_chat_completion(response_model, params, config)
+        do_streaming_partial_chat_completion(
+          response_model.__struct__() |> Ecto.Changeset.change(),
+          params,
+          config
+        )
 
       {{:array, response_model}, true} ->
-        do_streaming_array_chat_completion(response_model, params, config)
+        do_streaming_array_chat_completion(
+          response_model.__struct__() |> Ecto.Changeset.change(),
+          params,
+          config
+        )
 
       {{:array, response_model}, false} ->
         params = Keyword.put(params, :stream, true)
 
-        do_streaming_array_chat_completion(response_model, params, config)
+        do_streaming_array_chat_completion(
+          response_model.__struct__() |> Ecto.Changeset.change(),
+          params,
+          config
+        )
         |> Enum.to_list()
 
       {response_model, false} ->
-        do_chat_completion(response_model, params, config)
+        do_chat_completion(response_model.__struct__() |> Ecto.Changeset.change(), params, config)
 
       {_, true} ->
         raise """
@@ -232,6 +250,38 @@ defmodule Instructor do
     {data, types}
     |> Ecto.Changeset.cast(params, fields)
     |> Ecto.Changeset.validate_required(fields)
+  end
+
+  def cast_all(%Ecto.Changeset{data: data} = changeset, params) do
+    response_model = data.__struct__
+    fields = response_model.__schema__(:fields) |> MapSet.new()
+    embedded_fields = response_model.__schema__(:embeds) |> MapSet.new()
+    associated_fields = response_model.__schema__(:associations) |> MapSet.new()
+
+    fields =
+      fields
+      |> MapSet.difference(embedded_fields)
+      |> MapSet.difference(associated_fields)
+
+    changeset =
+      changeset
+      |> Ecto.Changeset.cast(params, fields |> MapSet.to_list())
+
+    changeset =
+      for field <- embedded_fields, reduce: changeset do
+        changeset ->
+          changeset
+          |> Ecto.Changeset.cast_embed(field, with: &cast_all/2)
+      end
+
+    changeset =
+      for field <- associated_fields, reduce: changeset do
+        changeset ->
+          changeset
+          |> Ecto.Changeset.cast_assoc(field, with: &cast_all/2)
+      end
+
+    changeset
   end
 
   def cast_all(schema, params) do
@@ -415,27 +465,29 @@ defmodule Instructor do
     end)
   end
 
-  defp do_chat_completion(response_model, params, config) do
+  defp do_chat_completion(
+         %Ecto.Changeset{data: %{__struct__: response_model}} = changeset,
+         params,
+         config
+       ) do
+    after_request = Keyword.get(params, :after_request, fn c, _r -> c end)
     validation_context = Keyword.get(params, :validation_context, %{})
     max_retries = Keyword.get(params, :max_retries)
     mode = Keyword.get(params, :mode, :tools)
     params = params_for_mode(mode, response_model, params)
 
-    model =
-      if is_ecto_schema(response_model) do
-        response_model.__struct__()
-      else
-        {%{}, response_model}
-      end
-
-    with {:ok, raw_response, params} <- do_adapter_chat_completion(params, config),
-         {%Ecto.Changeset{valid?: true} = changeset, raw_response} <-
-           {cast_all(model, params), raw_response},
-         {%Ecto.Changeset{valid?: true} = changeset, _raw_response} <-
-           {call_validate(response_model, changeset, validation_context), raw_response} do
+    with {:ok, {_raw_request, _raw_response} = result, params} <-
+           do_adapter_chat_completion(Keyword.drop(params, [:after_request]), config),
+         changeset = after_request.(changeset, result),
+         {%Ecto.Changeset{valid?: true} = changeset, result} <-
+           {cast_all(changeset, params), result},
+         {%Ecto.Changeset{valid?: true} = changeset, _result} <-
+           {call_validate(response_model, changeset, validation_context), result} do
       {:ok, changeset |> Ecto.Changeset.apply_changes()}
     else
-      {%Ecto.Changeset{} = changeset, raw_response} ->
+      {%Ecto.Changeset{} = changeset, {_raw_request, raw_response} = result} ->
+        changeset = after_request.(changeset, result)
+
         if max_retries > 0 do
           errors = Instructor.ErrorFormatter.format_errors(changeset)
 
@@ -461,7 +513,7 @@ defmodule Instructor do
                 ]
             end)
 
-          do_chat_completion(response_model, params, config)
+          do_chat_completion(changeset, params, config)
         else
           {:error, changeset}
         end
@@ -535,10 +587,7 @@ defmodule Instructor do
           :json ->
             [sys_message | messages]
 
-          :json_schema ->
-            messages
-
-          :tools ->
+          m when m in [:json_schema, :tools, :structured_output] ->
             messages
         end
       end)
@@ -553,7 +602,7 @@ defmodule Instructor do
           type: "json_object"
         })
 
-      :json_schema ->
+      m when m in [:json_schema, :structured_output] ->
         params
         |> Keyword.put(:response_format, %{
           type: "json_schema",

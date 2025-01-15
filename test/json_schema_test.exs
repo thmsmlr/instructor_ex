@@ -216,7 +216,7 @@ defmodule JSONSchemaTest do
       },
       "description" => "",
       "properties" => %{
-        "embedded" => %{"$ref" => "#/$defs/JSONSchemaTest.Embedded", "title" => "embedded"}
+        "embedded" => %{"$ref" => "#/$defs/JSONSchemaTest.Embedded"}
       },
       "required" => ["embedded"],
       "title" => "JSONSchemaTest.Demo",
@@ -312,7 +312,6 @@ defmodule JSONSchemaTest do
       "properties" => %{
         "children" => %{
           "items" => %{"$ref" => "#/$defs/JSONSchemaTest.Child"},
-          "title" => "JSONSchemaTest.Child",
           "type" => "array"
         },
         "id" => %{"title" => "id", "type" => "integer"}

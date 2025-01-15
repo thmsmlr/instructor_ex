@@ -135,7 +135,7 @@ defmodule Instructor.Adapters.Anthropic do
   defp api_key(config), do: Keyword.fetch!(config, :api_key)
   defp http_options(config), do: Keyword.fetch!(config, :http_options)
 
-  defp config(base_config \\ nil) do
+  defp config(base_config) do
     @default_config
     |> Keyword.merge(Application.get_env(:anthropic, :openai, []))
     |> Keyword.merge(base_config || [])

@@ -7,6 +7,8 @@ defmodule Instructor.JSONSchema do
     Note: This will output a correct JSON Schema for the given Ecto schema, but
     it will not necessarily be optimal, nor support all Ecto types.
   """
+  def from_ecto_schema(%Ecto.Changeset{data: %{__struct__: module}}), do: from_ecto_schema(module)
+
   def from_ecto_schema(ecto_schema) do
     defs =
       for schema <- bfs_from_ecto_schema([ecto_schema], %MapSet{}), into: %{} do
@@ -105,27 +107,32 @@ defmodule Instructor.JSONSchema do
         value = for_type(type)
 
         value =
-          Map.merge(%{title: Atom.to_string(field)}, value)
+          if field in ecto_schema.__schema__(:embeds) do
+            value
+          else
+            Map.merge(%{title: Atom.to_string(field)}, value)
+          end
 
-        value = if field_doc != "" do
-          Map.update(value, :description, field_doc, fn desc ->
-            field_doc =
-              cond do
-                field_doc == "" ->
-                  ""
+        value =
+          if field_doc != "" do
+            Map.update(value, :description, field_doc, fn desc ->
+              field_doc =
+                cond do
+                  field_doc == "" ->
+                    ""
 
-                String.ends_with?(field_doc, ".") ->
-                  field_doc <> " "
+                  String.ends_with?(field_doc, ".") ->
+                    field_doc <> " "
 
-                true ->
-                  field_doc <> ". "
-              end
+                  true ->
+                    field_doc <> ". "
+                end
 
-            field_doc <> desc
-          end)
-        else
-          value
-        end
+              field_doc <> desc
+            end)
+          else
+            value
+          end
 
         value =
           if type == :string && match?(%Regex{}, field_pattern) do
@@ -150,7 +157,7 @@ defmodule Instructor.JSONSchema do
           if association.cardinality == :many do
             %{
               items: %{"$ref": "#/$defs/#{title}"},
-              title: title,
+              # title: title,
               type: "array"
             }
           else

@@ -3,7 +3,7 @@ defmodule Instructor.Adapters.OpenAI do
   Documentation for `Instructor.Adapters.OpenAI`.
   """
   @behaviour Instructor.Adapter
-  @supported_modes [:tools, :json, :md_json, :json_schema]
+  @supported_modes [:tools, :json, :md_json, :json_schema, :structured_output]
 
   alias Instructor.JSONSchema
   alias Instructor.SSEStreamParser
@@ -31,10 +31,11 @@ defmodule Instructor.Adapters.OpenAI do
       raise "Unsupported OpenAI mode #{mode}. Supported modes: #{inspect(@supported_modes)}"
     end
 
+    # TODO: Only do this when `strict: true`
     params =
       case params do
         # OpenAI's json_schema mode doesn't support format or pattern attributes
-        %{"response_format" => %{"json_schema" => %{"schema" => _schema}}} ->
+        %{response_format: %{json_schema: %{schema: _schema}}} ->
           update_in(params, [:response_format, :json_schema, :schema], fn schema ->
             JSONSchema.traverse_and_update(schema, fn
               %{"type" => _} = x when is_map_key(x, "format") or is_map_key(x, "pattern") ->
@@ -132,12 +133,12 @@ defmodule Instructor.Adapters.OpenAI do
   defp do_chat_completion(mode, params, config) do
     options = Keyword.merge(http_options(config), [auth_header(config), json: params])
 
-    with {:ok, %Req.Response{status: 200, body: body} = response} <-
-           Req.post(url(config), options),
+    with {%Req.Request{}, %Req.Response{status: 200, body: body}} = result <-
+           Req.run(url(config), [{:method, :post} | options]),
          {:ok, content} <- parse_response_for_mode(mode, body) do
-      {:ok, response, content}
+      {:ok, result, content}
     else
-      {:ok, %Req.Response{status: status, body: body}} ->
+      {%Req.Request{}, %Req.Response{status: status, body: body}} ->
         {:error, "Unexpected HTTP response code: #{status}\n#{inspect(body)}"}
 
       e ->
@@ -152,15 +153,8 @@ defmodule Instructor.Adapters.OpenAI do
        }),
        do: Jason.decode(args)
 
-  defp parse_response_for_mode(:md_json, %{"choices" => [%{"message" => %{"content" => content}}]}),
-       do: Jason.decode(content)
-
-  defp parse_response_for_mode(:json, %{"choices" => [%{"message" => %{"content" => content}}]}),
-    do: Jason.decode(content)
-
-  defp parse_response_for_mode(:json_schema, %{
-         "choices" => [%{"message" => %{"content" => content}}]
-       }),
+  defp parse_response_for_mode(mode, %{"choices" => [%{"message" => %{"content" => content}}]})
+       when mode in [:md_json, :json, :json_schema, :structured_output],
        do: Jason.decode(content)
 
   defp parse_response_for_mode(mode, response) do
@@ -220,7 +214,7 @@ defmodule Instructor.Adapters.OpenAI do
 
   defp http_options(config), do: Keyword.fetch!(config, :http_options)
 
-  defp config(base_config \\ nil) do
+  defp config(base_config) do
     @default_config
     |> Keyword.merge(Application.get_env(:instructor, :openai, []))
     |> Keyword.merge(base_config || [])
