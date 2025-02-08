@@ -74,7 +74,7 @@ So, let's try asking the LLM to give us some politicians.
 
 ```elixir
 Instructor.chat_completion(
-  model: "gpt-3.5-turbo",
+  model: "gpt-4o-mini",
   response_model: Politician,
   messages: [
     %{
@@ -152,7 +152,7 @@ When we ask for fewer than ten numbers, Instructor will return an error tuple wi
 ```elixir
 {:error, changeset} =
   Instructor.chat_completion(
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o-mini",
     response_model: NumberSeries,
     messages: [
       %{role: "user", content: "Give me the first 5 integers"}
@@ -183,7 +183,7 @@ Instructor provides a convenience parameter, `max_retries` for you in the initia
 
 ```elixir
 Instructor.chat_completion(
-  model: "gpt-3.5-turbo",
+  model: "gpt-4o-mini",
   response_model: NumberSeries,
   max_retries: 10,
   messages: [
@@ -281,7 +281,7 @@ For example, let's take our presidents example from earlier, and we can instead 
 ```elixir
 presidents_stream =
   Instructor.chat_completion(
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o-mini",
     stream: true,
     response_model: {:array, Politician},
     messages: [
@@ -390,7 +390,7 @@ This is useful in UI applications where you want to show instant feedback to the
 
 ```elixir
 Instructor.chat_completion(
-  model: "gpt-3.5-turbo",
+  model: "gpt-4o-mini",
   stream: true,
   response_model: {:partial, Politician},
   messages: [
@@ -483,7 +483,7 @@ end
 
 ```elixir
 Instructor.chat_completion(
-  model: "gpt-3.5-turbo",
+  model: "gpt-4o-mini",
   response_model: %{url: EctoURI},
   messages: [
     %{role: "user", content: "Give me the URL for Google"}

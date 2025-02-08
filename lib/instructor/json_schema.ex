@@ -54,20 +54,39 @@ defmodule Instructor.JSONSchema do
     is_ecto = is_ecto_schema(response_model)
     has_old_doc = fetch_old_ecto_schema_doc(response_model) != nil
     has_new_doc = fetch_new_ecto_schema_doc(response_model) != nil
+    has_use_instructor = uses_use_instructor(response_model)
 
-    if is_ecto and has_old_doc and not has_new_doc do
-      Logger.warning("""
-      Using Ecto Schemas with the @doc attribute is deprecated.
+    cond do
+      is_ecto and not has_use_instructor ->
+        Logger.warning("""
+          Using Ecto Schemas without `use Instructor` is deprecated.
 
-      Please change your schema to include `use Instructor` and use the `@llm_doc` attribute to
-      define your schema documentation you'd like to send to the LLM.
-      """)
+          Please change your schema to include `use Instructor` and use the `@llm_doc` attribute to
+          define your schema documentation you'd like to send to the LLM.
+        """)
 
-      true
-    else
-      false
+        true
+
+      is_ecto and has_old_doc and not has_new_doc ->
+        Logger.warning("""
+          Using Ecto Schemas with the `@doc` attribute is deprecated.
+
+          Please change your schema to include `use Instructor` and use the `@llm_doc` attribute to
+          define your schema documentation you'd like to send to the LLM.
+        """)
+
+        true
+
+      true ->
+        false
     end
   end
+
+  defp uses_use_instructor(ecto_schema) when is_ecto_schema(ecto_schema) do
+    function_exported?(ecto_schema, :__llm_doc__, 0)
+  end
+
+  defp uses_use_instructor(_), do: false
 
   defp fetch_ecto_schema_doc(ecto_schema) when is_ecto_schema(ecto_schema) do
     fetch_new_ecto_schema_doc(ecto_schema) || fetch_old_ecto_schema_doc(ecto_schema)

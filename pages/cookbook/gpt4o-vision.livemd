@@ -1,6 +1,6 @@
 <!-- livebook:{"file_entries":[{"name":"shopify-screenshot.png","type":"attachment"}],"persist_outputs":true} -->
 
-# GPT4-Vision - Extracting Data from Images
+# GPT-4o-vision - Extracting Data from Images
 
 ```elixir
 Mix.install(
@@ -13,8 +13,6 @@ Mix.install(
       adapter: Instructor.Adapters.OpenAI,
       openai: [
         api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
-        # https://github.com/wojtekmach/req/issues/309
-        http_options: [receive_timeout: 60_000, connect_options: [protocols: [:http2]]]
       ]
     ]
   ]
@@ -23,7 +21,7 @@ Mix.install(
 
 ## Motivation
 
-In recent months, the latest AI researcher labs have turned LLMs into multimodal models. What this means is that no longer do they just interpret text, but they can also interpret images. One example of this provided by OpenAI is the GPT4-vision-preview model. With no extra work, you can now provide images into your prompts with instructor and still do the normal structured extractions that you're used to.
+The latest models support vision capabilities as well. This, with no extra work, is a feature of Instructor. All you have to do is pass a URL or Base64 encoded image as one of the messages, and everything should just work seamlessly.
 
 In the following example, we will extract product details from a screenshot of a Shopify store.
 
@@ -49,7 +47,7 @@ end
 
 {:ok, result} =
   Instructor.chat_completion(
-    model: "gpt-4-turbo",
+    model: "gpt-4o",
     response_model: Product,
     messages: [
       %{
@@ -69,11 +67,11 @@ result
 
 ```
 %Product{
-  name: "Thomas Wooden Railway Thomas the Tank Engine",
+  name: "Thomas Wooden Railway Thomas The Tank Engine",
   price: Decimal.new("33.0"),
   currency: :usd,
-  color: "Blue"
+  color: "blue"
 }
 ```
 
-<!-- livebook:{"offset":2123,"stamp":{"token":"XCP.TJRK8paQeu1WL9g-_BJm92kPTB7-zDXJBjLuEZYPKhqeRuXYC7N5dIgNMuhRkNu9-AkJ6VOqqTArCyM8ZdCeCec43zWdQMybwSDvuhO4X249KOG4jVW99KY","version":2}} -->
+<!-- livebook:{"offset":1801,"stamp":{"token":"XCP.3eUsk2eoTssLzfx2PUW1jDxQZ3yoXNoei3RlIouC-oe4lAyYJ9NZgK3tSBeSiVeyaoXRPJYHKK82NSagHJgvelAuiw2S_BAXweLfTVQx202SgBwu9o-MtxM","version":2}} -->

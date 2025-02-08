@@ -1,0 +1,57 @@
+# Groq
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: Path.expand("../../", __DIR__)},
+  ]
+)
+```
+
+## Introduction
+
+[Groq](https://groq.com/) is an LLM provider that uses custom chips to provide considerably higher tokens/sec for open source models than your standard AI labs using Nvidia hardware. That being said they currently only run OSS models and they tend to lag in capability from the frontier models by 6-8 months. Groq is a great option if you want speed and good price.
+
+To get started make an account with Groq and get an API key.
+
+There are three ways to configure Instructor to use Groq.
+
+1. via `Mix.install([...], [instructor: [adapter: Instructor.Adapters.Groq, groq: [...]]])`
+2. via `config :instructor, adapter: Instructor.Adapters.Groq, groq: [...]`
+3. At runtime via `Instructor.chat_completion(..., config)`
+
+For brevity, in this livebook, we'll configure it at runtime.
+
+```elixir
+config = [
+  adapter: Instructor.Adapters.Groq,
+  api_key: System.fetch_env!("LB_GROQ_API_KEY"),
+]
+
+defmodule President do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+Instructor.chat_completion(
+  [
+    model: "llama-3.3-70b-versatile",
+    mode: :tools,
+    response_model: President,
+    messages: [
+      %{role: "user", content: "Who was the first president of the United States?"}
+    ]
+  ],
+  config
+)
+```
+
+And there you go, Instructor running at 275 tokens/second.
+
+<!-- livebook:{"offset":1512,"stamp":{"token":"XCP.RW5Hd0tGmpybHXleSB6YIuSjrJCiSyPaeQnNxGRbpJ9NM3Fy46yFnJNThDeCvv3vHeA00Pu04XUh0gIxt15k6Fq4j9MzEskZWyOOwZZ58ah1FEB8B8eM","version":2}} -->

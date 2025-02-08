@@ -111,7 +111,7 @@ We cast the fields, we do the validations, and we return the result back to you.
 
 ```elixir
 Instructor.chat_completion(
-  model: "gpt-3.5-turbo",
+  model: "gpt-4o-mini",
   response_model: Recipe,
   messages: [
     %{ role: "user", content: "Give me a recipe for a banana smoothie" }

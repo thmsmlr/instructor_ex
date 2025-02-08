@@ -27,16 +27,8 @@ defmodule Instructor.Adapters.OpenAI do
     params =
       case params do
         # OpenAI's json_schema mode doesn't support format or pattern attributes
-        %{"response_format" => %{"json_schema" => %{"schema" => _schema}}} ->
-          update_in(params, [:response_format, :json_schema, :schema], fn schema ->
-            JSONSchema.traverse_and_update(schema, fn
-              %{"type" => _} = x when is_map_key(x, "format") or is_map_key(x, "pattern") ->
-                Map.drop(x, ["format", "pattern"])
-
-              x ->
-                x
-            end)
-          end)
+        %{response_format: %{json_schema: %{schema: _schema}}} ->
+          update_in(params, [:response_format, :json_schema, :schema], &normalize_json_schema/1)
 
         _ ->
           params
@@ -47,6 +39,21 @@ defmodule Instructor.Adapters.OpenAI do
     else
       do_chat_completion(mode, params, config)
     end
+  end
+
+  defp normalize_json_schema(schema) do
+    JSONSchema.traverse_and_update(schema, fn
+      %{"type" => _} = x when is_map_key(x, "format") or is_map_key(x, "pattern") ->
+        {format, x} = Map.pop(x, "format")
+        {pattern, x} = Map.pop(x, "pattern")
+
+        Map.update(x, "description", "", fn description ->
+          "#{description} (format: #{format}, pattern: #{pattern})"
+        end)
+
+      x ->
+        x
+    end)
   end
 
   @impl true

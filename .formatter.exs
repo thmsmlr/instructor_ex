@@ -6,6 +6,7 @@
     "{mix,.formatter}.exs",
     "{config,lib,test}/**/*.{ex,exs}",
     "pages/cookbook/**/*.{ex,exs}",
-    "examples/**/*.{ex,exs}"
+    "examples/**/*.{ex,exs}",
+    "scripts/**/*.{ex,exs}"
   ]
 ]

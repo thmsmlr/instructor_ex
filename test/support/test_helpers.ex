@@ -33,7 +33,7 @@ defmodule Instructor.TestHelpers do
              }
            }
          ],
-         "model" => "gpt-3.5-turbo-0613",
+         "model" => "gpt-4o-mini-0613",
          "object" => "chat.completion",
          "created" => 1_704_579_055,
          "system_fingerprint" => nil
@@ -64,7 +64,7 @@ defmodule Instructor.TestHelpers do
               }
             }
           ],
-          "model" => "gpt-3.5-turbo-0613",
+          "model" => "gpt-4o-mini-0613",
           "object" => "chat.completion",
           "created" => 1_704_579_055,
           "system_fingerprint" => nil

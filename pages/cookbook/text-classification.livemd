@@ -29,9 +29,9 @@ Spam detection is a classic example of binary text classification. It's as simpl
 ````elixir
 defmodule SpamPrediction do
   use Ecto.Schema
-  use Instructor.Validator
+  use Instructor
 
-  @doc """
+  @llm_doc """
   ## Field Descriptions:
   - class: Whether or not the email is spam.
   - reason: A short, less than 10 word rationalization for the classification.
@@ -56,7 +56,7 @@ end
 
 is_spam? = fn text ->
   Instructor.chat_completion(
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o-mini",
     response_model: SpamPrediction,
     max_retries: 3,
     messages: [
@@ -83,7 +83,7 @@ is_spam?.("Hello I am a Nigerian prince and I would like to send you money")
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, %SpamPrediction{class: :spam, reason: "Nigerian prince email", score: 0.95}}
+{:ok, %SpamPrediction{class: :spam, reason: "Nigerian prince scam email", score: 0.95}}
 ```
 
 We don't have to stop just at a boolean inclusion, we can also easily extend this idea to multiple categories or classes that we can classify the text into. In this example, let's consider classifying support emails. We want to know whether it's a `general_inquiry`, `billing_issue`, or a `technical_issue` perhaps it rightly fits in multiple classes. This can be useful if we want to cc' specialized support agents when intersecting customer issues occur
@@ -93,8 +93,9 @@ We can leverage `Ecto.Enum` to define a schema that restricts the LLM output to 
 ```elixir
 defmodule EmailClassifications do
   use Ecto.Schema
+  use Instructor
 
-  @doc """
+  @llm_doc """
   A classification of a customer support email.
 
   technical_issue - whether the user is having trouble accessing their account.
@@ -112,7 +113,7 @@ end
 classify_email = fn text ->
   {:ok, %{tags: result}} =
     Instructor.chat_completion(
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini",
       response_model: EmailClassifications,
       messages: [
         %{
@@ -134,4 +135,4 @@ classify_email.("My account is locked and I can't access my billing info.")
 [:technical_issue, :billing_issue]
 ```
 
-<!-- livebook:{"offset":4338,"stamp":{"token":"XCP.l_oO3E1dm0sy6Oq4Uq3ktl3R8U6M9-zN_arwnjlPva--WJOrq6RE3dmtT8_DyNHCbgP_Ij1kt41cOG6BtPkLbwK9Akb5d52zKN17vBnP_VYhMoZ1xl8bFKg","version":2}} -->
+<!-- livebook:{"offset":4354,"stamp":{"token":"XCP.3uvJS3qVpMhOA0gel6G7S4HKW92RcVP5l47QP8qFOhr6s9pMScBaNIBVOmf2NQKPdQoINMVH8qQKSeXVaS6gNoZDlQ6mvowO6PqbEoOX6CS00iJxeyeBqfU","version":2}} -->

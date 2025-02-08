@@ -31,9 +31,9 @@ We can do this pretty easily with instructor because the `validate_changeset/2` 
 ```elixir
 defmodule QuestionAnswer do
   use Ecto.Schema
-  use Instructor.Validator
+  use Instructor
 
-  @doc """
+  @llm_doc """
   A question/answer pair with full citations from the provided supporting text.
   citations should include the relevant facts related to answering the question
   and quotes from the supplied text.
@@ -80,7 +80,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, QuestionAnswer, <<70, 79, 82, 49, 0, 0, 24, ...>>, {:validate_answer, 3}}
+{:module, QuestionAnswer, <<70, 79, 82, 49, 0, 0, 55, ...>>, {:validate_answer, 3}}
 ```
 
 Notice something interesting about this code. While we provide a validation for the change set, Instructor by default will also cast all of the embedded and associated schemas. We can override that validation of associated schemas by using the `Ecto.Changeset.cast_embed/3` function with the `with:` option.
@@ -94,7 +94,7 @@ Now let's see how it responds to a question about me. Referencing my personal we
 ```elixir
 answer_with_citations = fn question, context ->
   Instructor.chat_completion(
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o-mini",
     response_model: QuestionAnswer,
     max_retries: 2,
     validation_context: %{
@@ -146,15 +146,19 @@ answer_with_citations.(question, context)
 ```
 {:ok,
  %QuestionAnswer{
-   question: "What companies and side projects has the author worked on?",
+   question: "What companies and what side projects has the author worked on?",
    answer: [
      %QuestionAnswer.Citation{
-       statement: "I have worked at Mortar Data and Stitch Fix.",
-       quote: "Over that time I have worked at Mortar Data (acquired by DataDog), and Stitch Fix building data platforms and doing MLOps."
+       statement: "The author has worked for Mortar Data and Stitch Fix.",
+       quote: "I have worked at Mortar Data (acquired by DataDog), and Stitch Fix building data platforms and doing MLOps."
      },
      %QuestionAnswer.Citation{
-       statement: "I have built projects like billclintonswag.com and 12ft.io.",
+       statement: "The author has built side projects like billclintonswag.com and 12ft.io.",
        quote: "On the side, I have built projects like billclintonswag.com and 12ft.io which cumulatively have reached over 50M+ people directly."
+     },
+     %QuestionAnswer.Citation{
+       statement: "The author's projects have been featured in Oprah Magazine.",
+       quote: "My project's have even been written up in Oprah Magazine."
      }
    ]
  }}
@@ -169,9 +173,9 @@ So in this example, we're going to write a custom validator for the citations th
 ```elixir
 defmodule CitationValidation do
   use Ecto.Schema
-  use Instructor.Validator
+  use Instructor
 
-  @doc """
+  @llm_doc """
   Whether or not a citation for a given text is valid.
   Optionally you can provide an error_message to when the citation is invalid.
   """
@@ -189,9 +193,9 @@ end
 
 defmodule LLMQuestionAnswer do
   use Ecto.Schema
-  use Instructor.Validator
+  use Instructor
 
-  @doc """
+  @llm_doc """
   A question/answer pair with full citations from the provided supporting text.
   citations should include the relevant facts related to answering the question
   and quotes from the supplied text.
@@ -222,7 +226,7 @@ defmodule LLMQuestionAnswer do
     |> Ecto.Changeset.validate_length(:quote, min: 1)
     |> Ecto.Changeset.validate_change(:quote, fn :quote, q ->
       case Instructor.chat_completion(
-             model: "gpt-3.5-turbo",
+             model: "gpt-4o-mini",
              response_model: CitationValidation,
              max_retries: 3,
              messages: [
@@ -240,7 +244,7 @@ defmodule LLMQuestionAnswer do
              ]
            ) do
         {:ok, %CitationValidation{is_valid?: true}} -> []
-        {:ok, %CitationValidation{is_valid?: false, error_message: err}} -> [err]
+        {:ok, %CitationValidation{is_valid?: false, error_message: err}} -> [quote: err]
       end
     end)
   end
@@ -250,7 +254,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, LLMQuestionAnswer, <<70, 79, 82, 49, 0, 0, 26, ...>>, {:validate_answer, 3}}
+{:module, LLMQuestionAnswer, <<70, 79, 82, 49, 0, 0, 58, ...>>, {:validate_answer, 3}}
 ```
 
 Notice here that we relaxed the requirement that it must exactly be in the base text. Rather the citation can just be semantically represented. This allows us to be a little more fuzzy with our validations.
@@ -296,14 +300,68 @@ changeset = Instructor.cast_all(%LLMQuestionAnswer{}, params)
         changes: %{quote: "Paris is the capital of France", statement: "Paris"},
         errors: [],
         data: #LLMQuestionAnswer.Citation<>,
-        valid?: true
+        valid?: true,
+        ...
       >
     ]
   },
   errors: [],
   data: #LLMQuestionAnswer<>,
-  valid?: true
+  valid?: true,
+  ...
 >
 ```
 
-<!-- livebook:{"offset":10002,"stamp":{"token":"XCP.7Hys0MtnvKlgvvdERiX6WVx9CSZZddOVeRwgna5Lju053elnhBBsxc4eOjG65xs56kEHUIeT5S3Ef9qfQo8_k-QweHafP-qdu_1OutGHBpTXP56WMuHf85A","version":2}} -->
+```elixir
+# Or and example of the citation failing
+
+# Simulated response from the LLM
+params = %{
+  question: "What is the capital of France?",
+  answer: [
+    %{
+      statement: "Paris",
+      quote: "Paris is the capital of France"
+    }
+  ]
+}
+
+# Internally Instructor makes this call with the result of the LLM to create
+# the changeset that it'll later validate.
+changeset = Instructor.cast_all(%LLMQuestionAnswer{}, params)
+
+%Ecto.Changeset{valid?: false} =
+  LLMQuestionAnswer.validate_changeset(changeset, %{
+    document: """
+      Thomas likes to golf
+      Some other irrelevant text
+    """
+  })
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+#Ecto.Changeset<
+  action: nil,
+  changes: %{
+    question: "What is the capital of France?",
+    answer: [
+      #Ecto.Changeset<
+        action: :insert,
+        changes: %{quote: "Paris is the capital of France", statement: "Paris"},
+        errors: [quote: {"The citation does not exist in the provided context.", []}],
+        data: #LLMQuestionAnswer.Citation<>,
+        valid?: false,
+        ...
+      >
+    ]
+  },
+  errors: [],
+  data: #LLMQuestionAnswer<>,
+  valid?: false,
+  ...
+>
+```
+
+<!-- livebook:{"offset":11362,"stamp":{"token":"XCP.J32qU39xdS7_7Kgs0pk5U8oDkmilSFrLb8uq9jn-ui_W2BXnB6sReBCAc2z0FMvLzq70FvJXev2GAnQrvJsq5H_dilIWvjeoyTbKHG5a3OV2CNn9RDWWugM","version":2}} -->

@@ -8,25 +8,6 @@ defmodule Instructor.Adapters.Gemini do
 
   alias Instructor.JSONSchema
 
-  def gemini_req,
-    do:
-      Req.new()
-      |> Req.Request.register_options([:rpc_function])
-      |> Req.Request.append_request_steps(
-        append_rpc_function: fn request ->
-          rpc_function = request.options[:rpc_function]
-
-          if rpc_function do
-            update_in(request.url.path, fn
-              nil -> nil
-              path -> path <> inspect(rpc_function)
-            end)
-          else
-            request
-          end
-        end
-      )
-
   @doc """
   Run a completion against Google's Gemini API
   Accepts OpenAI API arguments and converts to Gemini Args to perform the completion.
@@ -135,6 +116,40 @@ defmodule Instructor.Adapters.Gemini do
     else
       do_chat_completion(mode, params, config)
     end
+  end
+
+  @impl true
+  def reask_messages(raw_response, params, _config) do
+    reask_messages_for_mode(params[:mode], raw_response)
+  end
+
+  defp reask_messages_for_mode(:tools, %{
+         "choices" => [
+           %{
+             "message" =>
+               %{
+                 "tool_calls" => [
+                   %{"id" => tool_call_id, "function" => %{"name" => name, "arguments" => args}} =
+                     function
+                 ]
+               } = message
+           }
+         ]
+       }) do
+    [
+      Map.put(message, "content", function |> Jason.encode!())
+      |> Map.new(fn {k, v} -> {String.to_atom(k), v} end),
+      %{
+        role: "tool",
+        tool_call_id: tool_call_id,
+        name: name,
+        content: args
+      }
+    ]
+  end
+
+  defp reask_messages_for_mode(_mode, _raw_response) do
+    []
   end
 
   defp do_streaming_chat_completion(mode, params, config) do
@@ -290,6 +305,25 @@ defmodule Instructor.Adapters.Gemini do
     end)
     |> Enum.join("")
   end
+
+  defp gemini_req,
+    do:
+      Req.new()
+      |> Req.Request.register_options([:rpc_function])
+      |> Req.Request.append_request_steps(
+        append_rpc_function: fn request ->
+          rpc_function = request.options[:rpc_function]
+
+          if rpc_function do
+            update_in(request.url.path, fn
+              nil -> nil
+              path -> path <> inspect(rpc_function)
+            end)
+          else
+            request
+          end
+        end
+      )
 
   defp url(config), do: api_url(config) <> ":api_version/models/:model"
   defp api_url(config), do: Keyword.fetch!(config, :api_url)

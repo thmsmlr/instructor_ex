@@ -21,108 +21,29 @@ Mix.install(
 
 ## Setting up llama.cpp
 
-The open source community has been hard at work trying to dethrone OpenAI. It turns out today there are hundreds of models that you can download on HuggingFace and run locally on your machine if you have the right hardware. One of the main ways to run these models locally is through the great project [llama.cpp](https://github.com/ggerganov/llama.cpp). You'd be surprised what a standard Macbook/Linux machine can actually run.
+[llama.cpp](https://github.com/ggerganov/llama.cpp) is a great way to run models locally. Head on over to the repo and install it on your system.
 
-Instructor is designed in a way where you can swap out the provider of the LLM. Internally, it's just implemented with behavior. You can customize it by changing the configuration. In fact, look at the `Mix.install` of this live book to see how that's done.
+Next, we'll need to download a GGUF compatible model to run with llama.cpp. As of today, I recommend using qwen-2.5-7b. It's a great model that is small enough to run locally.
 
-<!-- livebook:{"force_markdown":true} -->
+> **A note on quantization:** When you go search for GGUF models you'll see a lot of suffixes like `Q4_K_M` and `F8`. These are just different compression techniques, called quantization, that allow the model to take up dramatically less memory at the cost of some accuracy. There are many different methods of quantization that have different performance tradeoffs. However, it's generally recommended to run the largest model you can fit into your GPUs VRAM. Going over FP8 is generally unnecessary and at that point, you should be considering models with a larger number of parameters.
 
-```elixir
-config :instructor, adapter: Instructor.Adapters.Llamacpp
-config :instructor, llamacpp: [chat_template: :mistral_instruct]
-```
+To start the llama server, run `llama-server --port 8080 -ngl 999 -hf Qwen/Qwen2.5-7B-Instruct-GGUF`. This will automatically download the model weights and start a server to run them. `-ngl 999` is just a flag to tell llama how many layers of the neural network to offload to the GPU. 999, is effectively saying, run the entire model on the GPU.
 
-As of today, instructor doesn't actually run the LLM inside the BEAM. Instead, it calls out to a locally running web server that is part of the llama.cpp project. Luckily installation and configuration is easy.
+Then with that running in the background. You can use Instructor as you normally would!
 
-Somewhere on your machine clone the Lama.CPP repo and just run make,
+There are three ways to configure Instructor to use llama.cpp,
 
-<!-- livebook:{"attrs":"eyJpbl9iYWNrZ3JvdW5kIjpmYWxzZSwicmVzdGFydCI6ZmFsc2UsInNvdXJjZSI6ImNkIC9Vc2Vycy90aG9tYXMvY29kZS9sbGFtYS5jcHBcbm1ha2UifQ","chunks":null,"kind":"Elixir.KinoShell.ShellScriptCell","livebook_object":"smart_cell"} -->
+1. via `Mix.install([...], [instructor: [adapter: Instructor.Adapters.Llamacpp, llamacpp: [...]]])`
+2. via `config :instructor, adapter: Instructor.Adapters.Ollama, llamacpp: [...]`
+3. At runtime via `Instructor.chat_completion(..., config)`
 
-```elixir
-{_, 0} =
-  System.cmd(
-    "bash",
-    [
-      "-lc",
-      """
-      cd /Users/thomas/code/llama.cpp
-      make
-      """
-    ],
-    into: IO.stream()
-  )
-
-:ok
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-I llama.cpp build info: 
-I UNAME_S:   Darwin
-I UNAME_P:   arm
-I UNAME_M:   arm64
-I CFLAGS:    -I. -Icommon -D_XOPEN_SOURCE=600 -D_DARWIN_C_SOURCE -DNDEBUG -DGGML_USE_ACCELERATE -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64 -DGGML_USE_METAL  -std=c11   -fPIC -O3 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -pthread -Wunreachable-code-break -Wunreachable-code-return -Wdouble-promotion 
-I CXXFLAGS:  -I. -Icommon -D_XOPEN_SOURCE=600 -D_DARWIN_C_SOURCE -DNDEBUG -DGGML_USE_ACCELERATE -DACCELERATE_NEW_LAPACK -DACCELERATE_LAPACK_ILP64 -DGGML_USE_METAL  -std=c++11 -fPIC -O3 -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wmissing-declarations -Wmissing-noreturn -pthread   -Wunreachable-code-break -Wunreachable-code-return -Wmissing-prototypes -Wextra-semi
-I NVCCFLAGS:  
-I LDFLAGS:   -framework Accelerate -framework Foundation -framework Metal -framework MetalKit 
-I CC:        Apple clang version 15.0.0 (clang-1500.1.0.2.5)
-I CXX:       Apple clang version 15.0.0 (clang-1500.1.0.2.5)
-
-make: Nothing to be done for `default'.
-```
-
-<!-- livebook:{"output":true} -->
-
-```
-:ok
-```
-
-Next, we need to actually download a model to run. One important thing to note is that llama.cpp only runs models in the GGUF file format. However, there is a great active open source community that is constantly porting the new models over to this format. Anytime you're looking for a model to run, just Google the name of the model then GGUF, and you'll usually get a result from some fellow named [TheBloke](https://huggingface.co/TheBloke).
-
-On a fairly modest machine, you should be able to run a 7B model that is quantitized. For our example, we're going to run [mistral-7b-instruct-v0.2.Q5_K_S](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF).
-
-> **A note on quantization:** That Q5_K_S bit on the model represents the quantization of the model. Without getting into too much detail, roughly this represents how compressed the model is. The more compressed the model is, the lower the file size and the less RAM it takes to run. But there is slight loss in performance. If you're running a MacBook, I would suggest running the Q5 or the Q6 version of the models.
-
-Download the model somewhere on your hard drive and then we can set up the local Llama server to run against it.
-
-<!-- livebook:{"attrs":"eyJpbl9iYWNrZ3JvdW5kIjp0cnVlLCJyZXN0YXJ0IjpmYWxzZSwic291cmNlIjoiL1VzZXJzL3Rob21hcy9jb2RlL2xsYW1hLmNwcC9zZXJ2ZXIgLW5wIDQgLWNiIC12IC1tIH4vRG93bmxvYWRzL21pc3RyYWwtN2ItaW5zdHJ1Y3QtdjAuMi5RNl9LLmdndWYifQ","chunks":null,"kind":"Elixir.KinoShell.ShellScriptCell","livebook_object":"smart_cell"} -->
+For brevity, in this livebook, we'll configure it at runtime
 
 ```elixir
-frame = Kino.Frame.new() |> Kino.render()
+config = [
+  adapter: Instructor.Adapters.Llamacpp
+]
 
-command =
-  "/Users/thomas/code/llama.cpp/server -np 4 -cb -v -m ~/Downloads/mistral-7b-instruct-v0.2.Q6_K.gguf"
-
-child_spec =
-  Task.child_spec(fn ->
-    KinoShell.print_to_frame(frame, "[KinoShell]: Starting - #{command}
-")
-
-    status_code =
-      KinoShell.exec("/bin/bash", ["-lc", command], fn data ->
-        KinoShell.print_to_frame(frame, data)
-      end)
-
-    color =
-      if status_code == 0 do
-        :yellow
-      else
-        :red
-      end
-
-    KinoShell.print_to_frame(frame, [
-      color,
-      "[KinoShell]: Command shutdown with #{status_code}
-"
-    ])
-  end)
-
-Kino.start_child(%{child_spec | restart: :temporary})
-Kino.nothing()
-```
-
-```elixir
 defmodule President do
   use Ecto.Schema
 
@@ -135,10 +56,14 @@ defmodule President do
 end
 
 Instructor.chat_completion(
-  response_model: President,
-  messages: [
-    %{role: "user", content: "Who was the first president of the United States?"}
-  ]
+  [
+    response_model: President,
+    mode: :json_schema,
+    messages: [
+      %{role: "user", content: "Who was the first president of the United States?"}
+    ]
+  ],
+  config
 )
 ```
 
@@ -146,7 +71,7 @@ Instructor.chat_completion(
 
 ```
 {:ok,
- %President{first_name: "George", last_name: "Washington", entered_office_date: ~D[1789-04-30]}}
+ %President{first_name: "George", last_name: "Washington", entered_office_date: ~D[1789-04-01]}}
 ```
 
 And there you have it. You're running Instructor against a locally running large language model.  At zero incremental cost to you.

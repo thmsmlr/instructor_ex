@@ -7,10 +7,45 @@ defmodule InstructorTest.DemoWithDocumentation do
       https://stackoverflow.com/questions/73965602/why-cant-i-import-test-modules-directly-into-other-tests-in-elixir
   """
   use Ecto.Schema
+  use Instructor
 
   @doc """
   Hello world
   """
+  @primary_key false
+  embedded_schema do
+    field(:string, :string)
+  end
+end
+
+defmodule InstructorTest.DemoRawEctoSchema do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:string, :string)
+  end
+end
+
+defmodule InstructorTest.DemoWithUseInstructorButOldDoc do
+  use Instructor
+  use Ecto.Schema
+
+  @doc """
+  Hello world
+  """
+  @primary_key false
+  embedded_schema do
+    field(:string, :string)
+  end
+end
+
+defmodule InstructorTest.DemoWithUseInstructorAndNewDoc do
+  use Instructor
+  use Ecto.Schema
+
+  @llm_doc "Hello world"
+
   @primary_key false
   embedded_schema do
     field(:string, :string)

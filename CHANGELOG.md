@@ -2,6 +2,29 @@
 
 ## [Unreleased](https://github.com/thmsmlr/instructor_ex/compare/v0.0.5..main)
 
+### Added
+- **New Adapters**: Anthropic, Gemini, Groq, Ollama, and VLLM. Each of these provides specialized support for their respective LLM APIs.
+- **`:json_schema` Mode**: The OpenAI adapter and others now support a `:json_schema` mode for more structured JSON outputs.
+- **`Instructor.Extras.ChainOfThought`**: A new module to guide multi-step reasoning processes with partial returns and final answers.
+- **Enhanced Streaming**: More robust partial/array streaming pipelines, plus improved SSE-based parsing for streamed responses.
+- **Re-ask/Follow-up Logic**: Adapters can now handle re-asking the LLM to correct invalid JSON responses when `max_retries` is set.
+
+### Changed
+- **OpenAI Adapter Refactor**: A major internal refactor for more flexible streaming modes, additional “response format” options, and better error handling.
+- **Ecto Dependency**: Updated from `3.11` to `3.12`. 
+- **Req Dependency**: Now supports `~> 0.5` or `~> 1.0`.
+
+### Deprecated
+- **Schema Documentation via `@doc`**: Schemas using `@doc` to send instructions to the LLM will now emit a warning. Please migrate to `@llm_doc` via `use Instructor`.
+
+### Breaking Changes
+- Some adapter configurations now require specifying an `:api_path` or `:auth_mode`. Verify your adapter config matches the new format.
+- The OpenAI adapter’s `:json_schema` mode strips unsupported fields (e.g., `format`, `pattern`) from schemas before sending them to the LLM.
+
+### Fixed
+- Various improvements to JSON parsing and streaming handling, including better handling of partial/invalid responses.
+
+
 ## [v0.0.5](https://github.com/thmsmlr/instructor_ex/compare/v0.0.4..v0.0.5)
 
 ### Added

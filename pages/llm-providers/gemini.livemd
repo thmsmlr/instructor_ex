@@ -1,0 +1,59 @@
+# Gemini
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: Path.expand("../../", __DIR__)},
+  ]
+)
+```
+
+## Introduction
+
+Google is in the LLM game, i'm sure you've heard. Currently not many people use them, however that's not for lack of quality or for absurding pricing. Actually, they're quite cheap and incredibly good for the price. The main reason why people don't use them is that they don't use an OpenAI-compliant API. Therefore most of the libraries don't support it. Not instructor, no. We support it. We have to take some liberties to ensure that the API conforms, but it works and you can be up and running before you know it.
+
+First, head on over to the [Google AI Studio](https://aistudio.google.com/apikey) to get an API key.
+
+There are three ways to configure Instructor to use Gemini.
+
+1. via `Mix.install([...], [instructor: [adapter: Instructor.Adapters.Gemini, gemini: [...]]])`
+2. via `config :instructor, adapter: Instructor.Adapters.Gemini, gemini: [...]`
+3. At runtime via `Instructor.chat_completion(..., config)`
+
+For brevity, in this livebook, we'll configure it at runtime.
+
+We recommend that you use Instructor with `mode: :json_schema`.
+
+```elixir
+config = [
+  adapter: Instructor.Adapters.Gemini,
+  api_key: System.fetch_env!("LB_GEMINI_API_KEY")
+]
+
+defmodule President do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+Instructor.chat_completion(
+  [
+    model: "gemini-2.0-flash",
+    mode: :json_schema,
+    response_model: President,
+    messages: [
+      %{role: "user", content: "Who was the first president of the United States?"}
+    ]
+  ],
+  config
+)
+```
+
+And there you have it. Instructor with Google Gemini.
+
+<!-- livebook:{"offset":1778,"stamp":{"token":"XCP.wUwkJdv008d3KLA939_kGrHTvgXTyGpSyRIYvpDoM0LuMzuOZsGoifUHc18BeQOzlzihEXnO9FCqcp5tO2_4Q5NiXuAN3YRczFrjaU-Qg9yHeG-9FtM6sk4","version":2}} -->

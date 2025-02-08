@@ -60,7 +60,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Ecto.CSVDataFrame, <<70, 79, 82, 49, 0, 0, 12, ...>>, {:load, 1}}
+{:module, Ecto.CSVDataFrame, <<70, 79, 82, 49, 0, 0, 17, ...>>, {:load, 1}}
 ```
 
 Now that we have our data type, we can use it in our embedded ecto schema, just as we would have in any other example. If everything works correctly, we should get some data frames out.
@@ -68,9 +68,9 @@ Now that we have our data type, we can use it in our embedded ecto schema, just 
 ```elixir
 defmodule Database do
   use Ecto.Schema
-  use Instructor.Validator
+  use Instructor
 
-  @doc """
+  @llm_doc """
   The extracted database will contain one or more tables with data as csv formatted with ',' delimiters
   """
   @primary_key false
@@ -86,8 +86,7 @@ end
 <!-- livebook:{"output":true} -->
 
 ```
-{:module, Database, <<70, 79, 82, 49, 0, 0, 16, ...>>,
- [__schema__: 1, __schema__: 1, __schema__: 1, __schema__: 1, __schema__: 2, __schema__: 2, ...]}
+{:module, Database, <<70, 79, 82, 49, 0, 0, 43, ...>>, :ok}
 ```
 
 Perfect. And now let's test it out on some example text.
@@ -95,7 +94,7 @@ Perfect. And now let's test it out on some example text.
 ```elixir
 extract_df = fn text ->
   Instructor.chat_completion(
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o-mini",
     response_model: Database,
     messages: [
       %{
@@ -133,4 +132,4 @@ Kino.Layout.tabs(
 )
 ```
 
-<!-- livebook:{"offset":3901,"stamp":{"token":"XCP.TJaqw5CG6trQ4ACppLEU2MGD1JddFoOIOtNiGYcASjTho5a3Bya6X1-gAokBiv0YLj7_Oy_E3wlgdGKSsDHQAWz8fO1uVeUyvMyVuJKjlK_VB_Ok0oD-edc","version":2}} -->
+<!-- livebook:{"offset":3802,"stamp":{"token":"XCP.8kFgMDCVN4NG0bG_VpKXVUz9s7AeP6rAbpnYpK8YhFFWZB1PNWkQrhphICFfRa9zH2HfwULNqz-PRLtaKjrpR9WuhDbFFLfjHsl1crH0Iyf5BEALWenu9-A","version":2}} -->

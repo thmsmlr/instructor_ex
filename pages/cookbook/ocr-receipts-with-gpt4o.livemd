@@ -13,7 +13,6 @@ Mix.install(
       adapter: Instructor.Adapters.OpenAI,
       openai: [
         api_key: System.fetch_env!("LB_OPENAI_API_KEY"),
-        http_options: [receive_timeout: 60_000, connect_options: [protocols: [:http2]]]
       ]
     ]
   ]
@@ -128,12 +127,12 @@ Kino.Layout.grid([Kino.Image.new(image, :jpeg), receipt], columns: 2, boxed: tru
     %Receipt.Item{
       id: "3",
       name: "Lorem ipsum dolor sit amet",
-      price: Decimal.new("15"),
+      price: Decimal.new("15.0"),
       quantity: 1
     },
-    %Receipt.Item{id: "4", name: "Lorem ipsum", price: Decimal.new("15"), quantity: 1},
-    %Receipt.Item{id: "5", name: "Lorem ipsum", price: Decimal.new("15"), quantity: 1},
-    %Receipt.Item{id: "6", name: "Lorem ipsum dolor sit", price: Decimal.new("15"), quantity: 1},
+    %Receipt.Item{id: "4", name: "Lorem ipsum", price: Decimal.new("15.0"), quantity: 1},
+    %Receipt.Item{id: "5", name: "Lorem ipsum", price: Decimal.new("15.0"), quantity: 1},
+    %Receipt.Item{id: "6", name: "Lorem ipsum dolor sit", price: Decimal.new("15.0"), quantity: 1},
     %Receipt.Item{id: "7", name: "Lorem ipsum", price: Decimal.new("19.2"), quantity: 1}
   ]
 }
@@ -141,4 +140,4 @@ Kino.Layout.grid([Kino.Image.new(image, :jpeg), receipt], columns: 2, boxed: tru
 
 Now, we simply using Instructor to call gpt-4o with the base64 encoded image and the response model, and we can get back the results. We can have confidence that the results returned match all of our validations, and we've reduced the effects of any hallucinations.
 
-<!-- livebook:{"offset":4113,"stamp":{"token":"XCP.6Dv_hfb2HrmE0CxqiUM5VVSXHMy2yhhNDqQbHZTfXY_NVgTcaLJ9IfMgMrFwfN6IswLDn8XqjunoPIcdMIMay8a_U7v3JMUuPvPmEE6gpwbkKuHlr-mhtiQ","version":2}} -->
+<!-- livebook:{"offset":4033,"stamp":{"token":"XCP.w3F951NvQo7WPlhcGI-eUyFZogp1tgDIZalsbErufIRG3vdlaJkCHkZKz2q86X6OqesLdco1CFtKzOz3ZmNYHUk36DExApeehftSh1NzpW4CkNtkdweK3is","version":2}} -->

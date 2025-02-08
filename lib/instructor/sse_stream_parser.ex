@@ -28,6 +28,9 @@ defmodule Instructor.SSEStreamParser do
         "data: " <> data, {:root, ""} ->
           {[{:ok, Jason.decode!(data)}], {:root, ""}}
 
+        "event: " <> _, {_, _} ->
+          {[], {:root, ""}}
+
         line, {_, acc} ->
           {[], {:json, acc <> line}}
       end,

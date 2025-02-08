@@ -23,7 +23,7 @@ defmodule Instructor.Validator do
     end
 
     iex> Instructor.chat_completion(
-    ...>   model: "gpt-3.5-turbo",
+    ...>   model: "gpt-4o-mini",
     ...>   response_model: Instructor.Demos.SpamPrediction,
     ...>   max_retries: 1,
     ...>   messages: [
@@ -46,7 +46,7 @@ defmodule Instructor.Validator do
     }}
   """
   @callback validate_changeset(Ecto.Changeset.t()) :: Ecto.Changeset.t()
-  @callback validate_changeset(Ecto.Changeset.t(), Map.t()) :: Ecto.Changeset.t()
+  @callback validate_changeset(Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   @optional_callbacks [
     validate_changeset: 1,
     validate_changeset: 2
@@ -98,7 +98,7 @@ defmodule Instructor.Validator do
     Ecto.Changeset.validate_change(changeset, field, fn field, value ->
       {:ok, response} =
         Instructor.chat_completion(
-          model: Keyword.get(opts, :model, "gpt-3.5-turbo"),
+          model: Keyword.get(opts, :model, "gpt-4o-mini"),
           temperature: Keyword.get(opts, :temperature, 0),
           response_model: Validation,
           messages: [

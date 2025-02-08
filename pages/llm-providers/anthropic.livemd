@@ -1,0 +1,56 @@
+# Anthropic
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: Path.expand("../../", __DIR__)},
+  ]
+)
+```
+
+## Introduction
+
+Anthropic is a leading AI lab that competes with both OpenAI and Google.  Their models rank among the top, though their pricing is a little more expensive.  Lucky for you, we support them out of the box.  All you need to do is create an account with [Anthropic](https://console.anthropic.com/settings/keys) and get an API key.
+
+There are three ways to configure Instructor to use Anthropic.
+
+1. via `Mix.install([...], [instructor: [adapter: Instructor.Adapters.Anthropic, anthropic: [...]]])`
+2. via `config :instructor, adapter: Instructor.Adapters.Anthropic, anthropic: [...]`
+3. At runtime via `Instructor.chat_completion(..., config)`
+
+For brevity, in this livebook, we'll configure it at runtime
+
+```elixir
+config = [
+  adapter: Instructor.Adapters.Anthropic,
+  api_key: System.fetch_env!("LB_ANTHROPIC_API_KEY")
+]
+
+defmodule President do
+  use Ecto.Schema
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+Instructor.chat_completion(
+  [
+    model: "claude-3-5-haiku-20241022",
+    mode: :tools,
+    max_tokens: 1000,
+    response_model: President,
+    messages: [
+      %{role: "user", content: "Who was the first president of the United States?"}
+    ]
+  ],
+  config
+)
+```
+
+To get a list of all the models supported by Anthropic, you can check out this [link](https://docs.anthropic.com/en/docs/about-claude/models).
+
+<!-- livebook:{"offset":1557,"stamp":{"token":"XCP.-UxhDlnhQ0DS77yxvdRwt5881Nw7zCilkTFulcE2ia2KjbsHns2y03cJ2CNQq4-7Zerxt3tYBWGoidkVSHtHJ8e5H5fyWzIzb-CdP-gqOg8STvSaoJnE5sz_KvY","version":2}} -->

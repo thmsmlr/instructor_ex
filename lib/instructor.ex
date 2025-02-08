@@ -3,6 +3,8 @@ defmodule Instructor do
 
   alias Instructor.JSONSchema
 
+  @type stream :: Enumerable.t()
+
   @external_resource "README.md"
 
   [_, readme_docs, _] =
@@ -36,7 +38,7 @@ defmodule Instructor do
   ## Examples
 
       iex> Instructor.chat_completion(
-      ...>   model: "gpt-3.5-turbo",
+      ...>   model: "gpt-4o-mini",
       ...>   response_model: Instructor.Demos.SpamPrediction,
       ...>   messages: [
       ...>     %{
@@ -56,7 +58,7 @@ defmodule Instructor do
   Partial streaming will emit the record multiple times until it's complete.
 
       iex> Instructor.chat_completion(
-      ...>   model: "gpt-3.5-turbo",
+      ...>   model: "gpt-4o-mini",
       ...>   response_model: {:partial, %{name: :string, birth_date: :date}}
       ...>   messages: [
       ...>     %{
@@ -74,7 +76,7 @@ defmodule Instructor do
   and instructor will emit them one at a time as they arrive in complete form and validated.
 
       iex> Instructor.chat_completion(
-      ...>   model: "gpt-3.5-turbo",
+      ...>   model: "gpt-4o-mini",
       ...>   response_model: {:array, %{name: :string, birth_date: :date}}
       ...>   messages: [
       ...>     %{
@@ -94,7 +96,7 @@ defmodule Instructor do
   If there's a validation error, it will return an error tuple with the change set describing the errors.
 
       iex> Instructor.chat_completion(
-      ...>   model: "gpt-3.5-turbo",
+      ...>   model: "gpt-4o-mini",
       ...>   response_model: Instructor.Demos.SpamPrediction,
       ...>   messages: [
       ...>     %{
@@ -118,7 +120,7 @@ defmodule Instructor do
           {:ok, Ecto.Schema.t()}
           | {:error, Ecto.Changeset.t()}
           | {:error, String.t()}
-          | Stream.t()
+          | stream()
   def chat_completion(params, config \\ nil) do
     params =
       params

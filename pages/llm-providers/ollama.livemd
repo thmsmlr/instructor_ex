@@ -3,39 +3,49 @@
 ```elixir
 Mix.install(
   [
-    {:instructor, path: Path.expand("../../", __DIR__)},
-    {:kino_shell, "~> 0.1.2"}
-  ],
-  config: [
-    instructor: [
-      adapter: Instructor.Adapters.OpenAI,
-      openai: [
-        api_key: "ollama",
-        api_url: "http://localhost:11434"
-      ]
-    ]
+    {:instructor, path: Path.expand("../../", __DIR__)}
   ]
 )
 ```
 
-## Setup Ollama
+## Introduction
 
-TODO
+Before running the code below, please ensure the following:
 
-<!-- livebook:{"attrs":"eyJpbl9iYWNrZ3JvdW5kIjpmYWxzZSwicmVzdGFydCI6ZmFsc2UsInNvdXJjZSI6IiMgb2xsYW1hIHB1bGwgbm91cy1oZXJtZXMyLW1peHRyYWw6OHg3Yi1kcG8tcTZfSyJ9","chunks":null,"kind":"Elixir.KinoShell.ShellScriptCell","livebook_object":"smart_cell"} -->
+1. **Pull the Required Model**:  
+   Run the following command to pull the necessary model image:
+
+   ```bash
+   ollama pull qwen2.5:7b
+   ```
+
+   This command downloads the model `qwen2.5:7b` so that it can be used by the Instructor adapter.
+
+2. **Start the server**:  
+   Run the following command to start the local ollama server:
+
+   ```bash
+   ollama serve
+   ```
+
+Once you have the server running, you can call it with Instructor using the Ollama Adapter.
+
+There are three ways to configure Instructor to use Ollama,
+
+1. via `Mix.install([...], [instructor: [adapter: Instructor.Adapters.Ollama, ollama: [...]]])`
+2. via `config :instructor, adapter: Instructor.Adapters.Ollama, ollama: [...]`
+3. At runtime via `Instructor.chat_completion(..., config)`
+
+For brevity, in this livebook, we'll configure it at runtime
 
 ```elixir
-{_, 0} =
-  System.cmd("bash", ["-lc", "# ollama pull nous-hermes2-mixtral:8x7b-dpo-q6_K"],
-    into: IO.stream()
-  )
+config = [
+  adapter: Instructor.Adapters.Ollama
+]
 
-:ok
-```
-
-```elixir
 defmodule President do
   use Ecto.Schema
+  use Instructor
 
   @primary_key false
   embedded_schema do
@@ -46,25 +56,22 @@ defmodule President do
 end
 
 Instructor.chat_completion(
-  mode: :json,
-  model: "mistral:7b-instruct-q6_K",
-  response_model: President,
-  messages: [
-    %{role: "user", content: "Who was the first president of the United States?"}
-  ]
+  [
+    model: "qwen2.5:7b",
+    mode: :json,
+    response_model: President,
+    messages: [
+      %{role: "user", content: "Who was the first president of the United States?"}
+    ]
+  ],
+  config
 )
 ```
 
-```elixir
-Instructor.chat_completion(
-  model: "nous-hermes2-mixtral:8x7b-dpo-q6_K",
-  mode: :json,
-  stream: true,
-  response_model: {:array, President},
-  messages: [
-    %{role: "user", content: "Who are the first three presidents"}
-  ]
-)
-|> Stream.each(fn {:ok, x} -> IO.inspect(x) end)
-|> Stream.run()
-```
+There are three ways to configure Instructor to use Ollama,
+
+1. via `Mix.install([...], config)`
+2. via `config :instructor, adapter: :ollama, ollama: config`
+3. At runtime via `Instructor.chat_completion(..., config)`
+
+For brevity, in this livebook, we'll configure it at runtime

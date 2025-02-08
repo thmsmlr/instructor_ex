@@ -46,4 +46,21 @@ defmodule Instructor.SSEStreamParserTest do
                    SSEStreamParser.parse(tokens) |> Enum.to_list()
                  end
   end
+
+  test "handles anthropic style SSE" do
+    tokens = [
+      "event: message_delta\n",
+      "data: { \"number\": 1 }\n",
+      "event: message_delta\n",
+      "data: { \"number\": 2 }\n",
+      "event: message_stop\n",
+      "data: { \"number\": 3 }\n"
+    ]
+
+    assert SSEStreamParser.parse(tokens) |> Enum.to_list() == [
+             %{"number" => 1},
+             %{"number" => 2},
+             %{"number" => 3}
+           ]
+  end
 end

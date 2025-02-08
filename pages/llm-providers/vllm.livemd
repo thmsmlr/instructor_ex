@@ -1,0 +1,63 @@
+# Local Instructor w/ vLLM
+
+```elixir
+Mix.install(
+  [
+    {:instructor, path: Path.expand("../../", __DIR__)},
+  ]
+)
+```
+
+## Introduction
+
+When it comes to local inference, there are three main tools that people use: olama, llama.cpp, and in professional settings, vllm.  There are obviously more, but these are the main ones that people use.  vLLM is a high performance inference server that can handle many concurrent requests in parallel.  It uses this feature called grouped attention to make sure it can utilize the GPU's VRAM very efficiently.  On an RTX 4090, you can expect the LLM to push ~3000 tokens/sec on a 7B parameter model.
+
+vLLM is a great option if you want to host a local LLM inference server on an old gaming machine.  Or, in a corporate environment, you can host this on a GPU-optimized EC2 instance for completely private inference.
+
+To install vLLM, head on over to the docks and run through their [quick start guide](https://docs.vllm.ai/en/latest/getting_started/quickstart.html).
+
+Once installed, you can start up an OpenAI compliant inference server by running the following command,
+
+```
+$ vllm serve Qwen/Qwen2.5-1.5B-Instruct
+```
+
+This will download the model and start up your inference server. Instructor will plug in seamlessly when using the vLLM adapter.
+
+There are three ways to configure Instructor to use vLLM,
+
+1. via `Mix.install([...], [instructor: [adapter: Instructor.Adapters.VLLM, vllm: [...]]])`
+2. via `config :instructor, adapter: Instructor.Adapters.VLLM, vllm: [...]`
+3. At runtime via `Instructor.chat_completion(..., config)`
+
+For brevity, in this livebook, we'll configure it at runtime
+
+```elixir
+config = [
+  adapter: Instructor.Adapters.VLLM
+]
+
+defmodule President do
+  use Ecto.Schema
+  use Instructor
+
+  @primary_key false
+  embedded_schema do
+    field(:first_name, :string)
+    field(:last_name, :string)
+    field(:entered_office_date, :date)
+  end
+end
+
+Instructor.chat_completion(
+  [
+    model: "Qwen/Qwen2.5-1.5B-Instruct",
+    mode: :json_schema,
+    response_model: President,
+    messages: [
+      %{role: "user", content: "Who was the first president of the United States?"}
+    ]
+  ],
+  config
+)
+```
