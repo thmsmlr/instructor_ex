@@ -2,11 +2,31 @@ defmodule Instructor.Adapters.Gemini do
   @moduledoc """
   Adapter for Google Gemini.
 
-  """
-  @behaviour Instructor.Adapter
-  @supported_modes [:tools, :json_schema]
+  ## Configuration
 
+  ```elixir
+  config :instructor, adapter: Instructor.Adapters.Gemini, gemini: [
+    api_key: "your_api_key"
+  ]
+  ```
+
+  or at runtime:
+
+  ```elixir
+  Instructor.chat_completion(..., [
+    adapter: Instructor.Adapters.Gemini,
+    api_key: "your_api_key"
+  ])
+  ```
+
+  To get a Gemini API key, see [Gemini](https://aistudio.google.com/apikey).
+  """
+
+  @behaviour Instructor.Adapter
+  alias Instructor.Adapters
   alias Instructor.JSONSchema
+
+  @supported_modes [:tools, :json_schema]
 
   @doc """
   Run a completion against Google's Gemini API
@@ -116,40 +136,6 @@ defmodule Instructor.Adapters.Gemini do
     else
       do_chat_completion(mode, params, config)
     end
-  end
-
-  @impl true
-  def reask_messages(raw_response, params, _config) do
-    reask_messages_for_mode(params[:mode], raw_response)
-  end
-
-  defp reask_messages_for_mode(:tools, %{
-         "choices" => [
-           %{
-             "message" =>
-               %{
-                 "tool_calls" => [
-                   %{"id" => tool_call_id, "function" => %{"name" => name, "arguments" => args}} =
-                     function
-                 ]
-               } = message
-           }
-         ]
-       }) do
-    [
-      Map.put(message, "content", function |> Jason.encode!())
-      |> Map.new(fn {k, v} -> {String.to_atom(k), v} end),
-      %{
-        role: "tool",
-        tool_call_id: tool_call_id,
-        name: name,
-        content: args
-      }
-    ]
-  end
-
-  defp reask_messages_for_mode(_mode, _raw_response) do
-    []
   end
 
   defp do_streaming_chat_completion(mode, params, config) do
@@ -324,6 +310,9 @@ defmodule Instructor.Adapters.Gemini do
           end
         end
       )
+
+  @impl true
+  defdelegate reask_messages(raw_response, params, config), to: Adapters.OpenAI
 
   defp url(config), do: api_url(config) <> ":api_version/models/:model"
   defp api_url(config), do: Keyword.fetch!(config, :api_url)

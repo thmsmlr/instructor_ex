@@ -1,6 +1,25 @@
 defmodule Instructor.Adapters.VLLM do
   @moduledoc """
   VLLM adapter for Instructor.
+
+  ## Configuration
+
+  ```elixir
+  config :instructor, adapter: Instructor.Adapters.VLLM, vllm: [
+    api_url: "http://localhost:8000" # (Optional) defaults to localhost:8000
+  ]
+  ```
+
+  or at runtime:
+
+  ```elixir
+  Instructor.chat_completion(..., [
+    adapter: Instructor.Adapters.VLLM,
+    api_url: "http://localhost:8000" # (Optional) defaults to localhost:8000
+  ])
+  ```
+
+  To get a VLLM API key, see [VLLM](https://vllm.ai/).
   """
   @behaviour Instructor.Adapter
   alias Instructor.Adapters

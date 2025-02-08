@@ -5,10 +5,28 @@ defmodule Instructor.Adapters.Llamacpp do
 
   You can read more about it here:
     https://github.com/ggerganov/llama.cpp/tree/master/examples/server
+
+  ## Configuration
+
+  ```elixir
+  config :instructor, adapter: Instructor.Adapters.Llamacpp, llamacpp: [
+    api_url: "http://localhost:8080" # (Optional) defaults to localhost:8080
+  ]
+  ```
+
+  or at runtime:
+
+  ```elixir
+  Instructor.chat_completion(..., [
+    adapter: Instructor.Adapters.Llamacpp,
+    api_url: "http://localhost:8080"
+  ])
+  ```
+
   """
-  alias Instructor.Adapters
 
   @behaviour Instructor.Adapter
+  alias Instructor.Adapters
 
   @doc """
   Run a completion against the llama.cpp server, not the open-ai compliant one.

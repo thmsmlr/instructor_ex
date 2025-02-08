@@ -1,7 +1,27 @@
 defmodule Instructor.Adapters.Ollama do
   @moduledoc """
   Ollama adapter for Instructor.
+
+  ## Configuration
+
+  ```elixir
+  config :instructor, adapter: Instructor.Adapters.Ollama, ollama: [
+    api_url: "http://localhost:11434" # (Optional) defaults to localhost:11434
+  ]
+  ```
+
+  or at runtime:
+
+  ```elixir
+  Instructor.chat_completion(..., [
+    adapter: Instructor.Adapters.Ollama,
+    api_url: "http://localhost:11434" # (Optional) defaults to localhost:11434
+  ])
+  ```
+
+  To get an Ollama API key, see [Ollama](https://ollama.com/api).
   """
+
   @behaviour Instructor.Adapter
   alias Instructor.Adapters
 
