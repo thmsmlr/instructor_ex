@@ -59,8 +59,24 @@ defmodule Instructor.Adapters.Gemini do
         %{role: "assistant", content: content}, {system_instructions, history} ->
           {system_instructions, [%{role: "model", parts: [%{text: content}]} | history]}
 
-        %{role: "user", content: content}, {system_instructions, history} ->
+        %{role: "user", content: content}, {system_instructions, history}
+        when is_binary(content) ->
           {system_instructions, [%{role: "user", parts: [%{text: content}]} | history]}
+
+        %{role: "user", content: content}, {system_instructions, history} ->
+          parts =
+            Enum.map(content, fn
+              %{type: "text", text: text} ->
+                %{text: text}
+
+              %{type: "image_url", image_url: %{url: url, mime_type: mime_type}} ->
+                %{file_data: %{mime_type: mime_type, file_uri: url}}
+
+              %{type: "video_url", video_url: %{url: url, mime_type: mime_type}} ->
+                %{file_data: %{mime_type: mime_type, file_uri: url}}
+            end)
+
+          {system_instructions, [%{role: "user", parts: parts} | history]}
 
         %{role: "system", content: content}, {system_instructions, history} ->
           part = %{text: content}
@@ -108,6 +124,13 @@ defmodule Instructor.Adapters.Gemini do
           params
           |> Map.put(:generationConfig, generation_config)
           |> Map.delete(:response_format)
+          |> Map.put(:safetySettings, [
+            %{category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE"},
+            %{category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE"},
+            %{category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE"},
+            %{category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE"},
+            %{category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE"}
+          ])
 
         %{tools: tools} ->
           tools = [
