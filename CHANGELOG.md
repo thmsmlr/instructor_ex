@@ -2,8 +2,12 @@
 
 ## [Unreleased](https://github.com/thmsmlr/instructor_ex/compare/v0.0.5..main)
 
+...
+
+## [v0.1.0](https://github.com/thmsmlr/instructor_ex/compare/v0.0.5..v0.1.0)
+
 ### Added
-- **New Adapters**: Anthropic, Gemini, Groq, Ollama, and VLLM. Each of these provides specialized support for their respective LLM APIs.
+- **New Adapters**: Anthropic, Gemini, xAI,Groq, Ollama, and VLLM. Each of these provides specialized support for their respective LLM APIs.
 - **`:json_schema` Mode**: The OpenAI adapter and others now support a `:json_schema` mode for more structured JSON outputs.
 - **`Instructor.Extras.ChainOfThought`**: A new module to guide multi-step reasoning processes with partial returns and final answers.
 - **Enhanced Streaming**: More robust partial/array streaming pipelines, plus improved SSE-based parsing for streamed responses.
