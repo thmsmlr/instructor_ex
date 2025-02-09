@@ -23,10 +23,11 @@ defmodule Instructor.Adapters.Gemini do
   """
 
   @behaviour Instructor.Adapter
+  alias Instructor.SSEStreamParser
   alias Instructor.Adapters
   alias Instructor.JSONSchema
 
-  @supported_modes [:tools, :json_schema]
+  @supported_modes [:json_schema]
 
   @doc """
   Run a completion against Google's Gemini API
@@ -102,7 +103,7 @@ defmodule Instructor.Adapters.Gemini do
           generation_config =
             generation_config
             |> Map.put("response_mime_type", "application/json")
-            |> Map.put("response_schema", map_schema(schema))
+            |> Map.put("response_schema", normalize_json_schema(schema))
 
           params
           |> Map.put(:generationConfig, generation_config)
@@ -116,7 +117,7 @@ defmodule Instructor.Adapters.Gemini do
                   %{
                     name: tool["name"],
                     description: tool["description"],
-                    parameters: map_schema(tool["parameters"])
+                    parameters: normalize_json_schema(tool["parameters"])
                   }
                 end)
             }
@@ -155,23 +156,7 @@ defmodule Instructor.Adapters.Gemini do
               json: params,
               rpc_function: :streamGenerateContent,
               into: fn {:data, data}, {req, resp} ->
-                chunks =
-                  data
-                  |> String.split("\n")
-                  |> Enum.filter(fn line ->
-                    String.starts_with?(line, "data: {")
-                  end)
-                  |> Enum.map(fn line ->
-                    line
-                    |> String.replace_prefix("data: ", "")
-                    |> Jason.decode!()
-                    |> then(&parse_stream_chunk_for_mode(mode, &1))
-                  end)
-
-                for chunk <- chunks do
-                  send(pid, chunk)
-                end
-
+                send(pid, data)
                 {:cont, {req, resp}}
               end
             )
@@ -196,6 +181,8 @@ defmodule Instructor.Adapters.Gemini do
       end,
       fn task -> Task.await(task) end
     )
+    |> SSEStreamParser.parse()
+    |> Stream.map(fn chunk -> parse_stream_chunk_for_mode(mode, chunk) end)
   end
 
   defp do_chat_completion(mode, params, config) do
@@ -266,17 +253,69 @@ defmodule Instructor.Adapters.Gemini do
     chunk
   end
 
-  defp map_schema(schema) do
-    JSONSchema.traverse_and_update(schema, fn
-      %{"type" => _} = x
-      when is_map_key(x, "format") or is_map_key(x, "pattern") or
-             is_map_key(x, "title") or is_map_key(x, "additionalProperties") ->
-        Map.drop(x, ["format", "pattern", "title", "additionalProperties"])
+  defp normalize_json_schema(schema) do
+    JSONSchema.traverse_and_update(
+      schema,
+      fn
+        {%{"type" => _} = x, path}
+        when is_map_key(x, "format") or is_map_key(x, "pattern") or
+               is_map_key(x, "title") or is_map_key(x, "additionalProperties") ->
+          x
+          |> Map.drop(["format", "pattern", "title", "additionalProperties"])
+          |> case do
+            %{"type" => "object", "properties" => properties} when map_size(properties) == 0 ->
+              raise """
+              Invalid JSON Schema: object with no properties at path: #{inspect(path)}
 
-      x ->
-        x
-    end)
+              Gemini does not support empty objects. This is likely because have have a naked :map type
+              without any fields at #{inspect(path)}. Try switching to an embedded schema instead.
+              """
+
+            x ->
+              x
+          end
+
+        {x, _path} ->
+          x
+      end,
+      include_path: true
+    )
+    |> inline_defs()
   end
+
+  defp inline_defs(schema) do
+    # First extract the definitions map for reference
+    {defs, schema} = Map.pop(schema, "$defs", %{})
+
+    # Traverse and replace all $refs with their definitions
+    traverse_and_inline(schema, defs)
+  end
+
+  defp traverse_and_inline(schema, defs) when is_map(schema) do
+    cond do
+      # If we find a $ref, replace it with the inlined definition
+      Map.has_key?(schema, "$ref") ->
+        ref = schema["$ref"]
+        def_key = String.replace_prefix(ref, "#/$defs/", "")
+        definition = Map.get(defs, def_key, %{})
+        # Recursively inline any nested refs in the definition
+        traverse_and_inline(definition, defs)
+
+      # Otherwise traverse all values in the map
+      true ->
+        schema
+        |> Enum.map(fn {k, v} -> {k, traverse_and_inline(v, defs)} end)
+        |> Enum.into(%{})
+    end
+  end
+
+  # Handle arrays by traversing each element
+  defp traverse_and_inline(schema, defs) when is_list(schema) do
+    Enum.map(schema, &traverse_and_inline(&1, defs))
+  end
+
+  # Base case - return non-map/list values as is
+  defp traverse_and_inline(schema, _defs), do: schema
 
   defp snake_to_camel(snake_case_string) do
     snake_case_string

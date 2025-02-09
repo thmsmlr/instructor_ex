@@ -74,12 +74,12 @@ defmodule JSONSchemaTest do
 
   test "includes documentation" do
     json_schema =
-      JSONSchema.from_ecto_schema(InstructorTest.DemoWithDocumentation)
+      JSONSchema.from_ecto_schema(InstructorTest.DemoWithUseInstructorAndNewDoc)
       |> Jason.decode!()
 
     expected_json_schema =
       %{
-        "description" => "Hello world\n",
+        "description" => "Hello world",
         "properties" => %{
           "string" => %{
             "title" => "string",
@@ -88,7 +88,7 @@ defmodule JSONSchemaTest do
           }
         },
         "required" => ["string"],
-        "title" => "InstructorTest.DemoWithDocumentation",
+        "title" => "InstructorTest.DemoWithUseInstructorAndNewDoc",
         "type" => "object",
         "additionalProperties" => false
       }
@@ -140,7 +140,7 @@ defmodule JSONSchemaTest do
   test "basic types" do
     defmodule Demo do
       use Ecto.Schema
-
+      use Instructor
       # Be explicit about all fields in this test
       @primary_key false
       embedded_schema do

@@ -83,7 +83,7 @@ defmodule Instructor.JSONSchema do
   end
 
   defp uses_use_instructor(ecto_schema) when is_ecto_schema(ecto_schema) do
-    function_exported?(ecto_schema, :__llm_doc__, 0)
+    {:__llm_doc__, 0} in ecto_schema.__info__(:functions)
   end
 
   defp uses_use_instructor(_), do: false
@@ -414,28 +414,46 @@ defmodule Instructor.JSONSchema do
 
   ## Parameters
     - tree: The tree structure to traverse (can be a map, list, or any other type)
-    - fun: A function that takes an element and returns either:
+    - fun: A function that takes either:
+      - Just the element if include_path: false (default)
+      - A tuple of {element, path} if include_path: true, where path is a list of keys to reach this element
+    The function should return either:
       - An updated element
       - nil to remove the element
       - The original element if no changes are needed
+    - opts: Optional keyword list of options
+      - include_path: boolean, when true includes the path to each element in the callback (default: false)
 
   ## Returns
     The updated tree structure
   """
-  def traverse_and_update(tree, fun) when is_map(tree) do
+  def traverse_and_update(tree, fun, opts \\ []) do
+    do_traverse_and_update(tree, fun, [], opts)
+  end
+
+  defp do_traverse_and_update(tree, fun, path, opts) when is_map(tree) do
     tree
-    |> Enum.map(fn {k, v} -> {k, traverse_and_update(v, fun)} end)
+    |> Enum.map(fn {k, v} -> {k, do_traverse_and_update(v, fun, path ++ [k], opts)} end)
     |> Enum.filter(fn {_, v} -> v != nil end)
     |> Enum.into(%{})
-    |> fun.()
+    |> maybe_call_with_path(fun, path, opts)
   end
 
-  def traverse_and_update(tree, fun) when is_list(tree) do
+  defp do_traverse_and_update(tree, fun, path, opts) when is_list(tree) do
     tree
-    |> Enum.map(fn elem -> traverse_and_update(elem, fun) end)
+    |> Enum.with_index()
+    |> Enum.map(fn {elem, idx} -> do_traverse_and_update(elem, fun, path ++ [idx], opts) end)
     |> Enum.filter(&(&1 != nil))
-    |> fun.()
+    |> maybe_call_with_path(fun, path, opts)
   end
 
-  def traverse_and_update(tree, fun), do: fun.(tree)
+  defp do_traverse_and_update(tree, fun, path, opts), do: maybe_call_with_path(tree, fun, path, opts)
+
+  defp maybe_call_with_path(value, fun, path, opts) do
+    if Keyword.get(opts, :include_path, false) do
+      fun.({value, path})
+    else
+      fun.(value)
+    end
+  end
 end

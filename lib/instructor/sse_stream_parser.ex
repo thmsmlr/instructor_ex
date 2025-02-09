@@ -18,7 +18,7 @@ defmodule Instructor.SSEStreamParser do
       fn acc -> {[acc], nil} end,
       fn _acc -> nil end
     )
-    |> Stream.filter(fn line -> line != "" end)
+    |> Stream.filter(fn line -> String.trim(line) != "" end)
     |> Stream.transform(
       fn -> {:root, ""} end,
       fn
@@ -26,7 +26,7 @@ defmodule Instructor.SSEStreamParser do
           {:halt, {:root, ""}}
 
         "data: " <> data, {:root, ""} ->
-          {[{:ok, Jason.decode!(data)}], {:root, ""}}
+          {[{:ok, decode_json!(data)}], {:root, ""}}
 
         "event: " <> _, {_, _} ->
           {[], {:root, ""}}
@@ -36,7 +36,7 @@ defmodule Instructor.SSEStreamParser do
       end,
       fn
         {:json, acc} ->
-          {[{:error, Jason.decode!(acc)}], {:root, ""}}
+          {[{:error, decode_json!(acc)}], {:root, ""}}
 
         {:root, ""} ->
           {[], {:root, ""}}
@@ -50,5 +50,12 @@ defmodule Instructor.SSEStreamParser do
       {:error, error} ->
         raise "Error from LLM: #{inspect(error)}"
     end)
+  end
+
+  defp decode_json!(data) do
+    case Jason.decode(data) do
+      {:ok, decoded} -> decoded
+      {:error, err} -> raise "Error decoding: #{inspect(err)} \n\n #{inspect(data)}"
+    end
   end
 end

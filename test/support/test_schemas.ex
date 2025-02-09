@@ -41,11 +41,10 @@ defmodule InstructorTest.DemoWithUseInstructorButOldDoc do
 end
 
 defmodule InstructorTest.DemoWithUseInstructorAndNewDoc do
-  use Instructor
   use Ecto.Schema
+  use Instructor
 
   @llm_doc "Hello world"
-
   @primary_key false
   embedded_schema do
     field(:string, :string)

@@ -268,7 +268,7 @@ defmodule InstructorTest do
               stream: true,
               response_model: {:array, President},
               messages: [
-                %{role: "user", content: "What are the first 3 presidents of the United States?"}
+                %{role: "user", content: "Who were the first 3 presidents of the United States?"}
               ]
             )
           )
