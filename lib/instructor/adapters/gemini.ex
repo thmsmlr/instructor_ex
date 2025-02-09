@@ -6,7 +6,7 @@ defmodule Instructor.Adapters.Gemini do
 
   ```elixir
   config :instructor, adapter: Instructor.Adapters.Gemini, gemini: [
-    api_key: "your_api_key"
+    api_key: "your_api_key" # Will use GOOGLE_API_KEY environment variable if not provided
   ]
   ```
 
@@ -15,11 +15,11 @@ defmodule Instructor.Adapters.Gemini do
   ```elixir
   Instructor.chat_completion(..., [
     adapter: Instructor.Adapters.Gemini,
-    api_key: "your_api_key"
+    api_key: "your_api_key" # Will use GOOGLE_API_KEY environment variable if not provided
   ])
   ```
 
-  To get a Gemini API key, see [Gemini](https://aistudio.google.com/apikey).
+  To get a Google API key, see [Google AI Studio](https://aistudio.google.com/apikey).
   """
 
   @behaviour Instructor.Adapter
@@ -364,6 +364,7 @@ defmodule Instructor.Adapters.Gemini do
     default_config = [
       api_version: :v1beta,
       api_url: "https://generativelanguage.googleapis.com/",
+      api_key: System.get_env("GOOGLE_API_KEY"),
       http_options: [receive_timeout: 60_000]
     ]
 

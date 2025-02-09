@@ -16,6 +16,7 @@ ExUnit.configure(
     adapter: :groq,
     adapter: :anthropic,
     adapter: :gemini,
+    adapter: :xai,
     adapter: :llamacpp,
     adapter: :ollama
   ]

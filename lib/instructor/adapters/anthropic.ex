@@ -6,7 +6,7 @@ defmodule Instructor.Adapters.Anthropic do
 
   ```elixir
   config :instructor, adapter: Instructor.Adapters.Anthropic, anthropic: [
-    api_key: "your_api_key"
+    api_key: "your_api_key" # Will use ANTHROPIC_API_KEY environment variable if not provided
   ]
   ```
 
@@ -15,7 +15,7 @@ defmodule Instructor.Adapters.Anthropic do
   ```elixir
   Instructor.chat_completion(..., [
     adapter: Instructor.Adapters.Anthropic,
-    api_key: "your_api_key"
+    api_key: "your_api_key" # Will use ANTHROPIC_API_KEY environment variable if not provided
   ])
   ```
 
@@ -159,6 +159,7 @@ defmodule Instructor.Adapters.Anthropic do
   defp config(base_config) do
     default_config = [
       api_url: "https://api.anthropic.com/",
+      api_key: System.get_env("ANTHROPIC_API_KEY"),
       http_options: [receive_timeout: 60_000]
     ]
 

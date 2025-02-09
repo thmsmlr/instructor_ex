@@ -6,7 +6,7 @@ defmodule Instructor.Adapters.Groq do
 
   ```elixir
   config :instructor, adapter: Instructor.Adapters.Groq, groq: [
-    api_key: "your_api_key"
+    api_key: "your_api_key" # Will use GROQ_API_KEY environment variable if not provided
   ]
   ```
 
@@ -15,7 +15,7 @@ defmodule Instructor.Adapters.Groq do
   ```elixir
   Instructor.chat_completion(..., [
     adapter: Instructor.Adapters.Groq,
-    api_key: "your_api_key"
+    api_key: "your_api_key" # Will use GROQ_API_KEY environment variable if not provided
   ])
   ```
 
@@ -48,6 +48,7 @@ defmodule Instructor.Adapters.Groq do
   defp config(base_config) do
     default_config = [
       api_url: "https://api.groq.com/openai",
+      api_key: System.get_env("GROQ_API_KEY"),
       http_options: [receive_timeout: 60_000]
     ]
 
