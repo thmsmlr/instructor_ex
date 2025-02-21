@@ -104,7 +104,7 @@ defmodule Instructor.Validator do
           response_model: Validation,
           messages: [
             %{
-              role: "system",
+              role: Keyword.get(opts, :instructor_role, "system"),
               content: """
               You are a world class validation model. Capable to determine if the following value is valid for the statement, if it is not, explain why.
               """
