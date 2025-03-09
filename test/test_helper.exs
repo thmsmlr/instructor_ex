@@ -17,6 +17,7 @@ ExUnit.configure(
     adapter: :anthropic,
     adapter: :gemini,
     adapter: :xai,
+    adapter: :deep_seek,
     adapter: :llamacpp,
     adapter: :ollama
   ]

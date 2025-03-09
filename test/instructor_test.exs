@@ -37,6 +37,10 @@ defmodule InstructorTest do
         Application.put_env(:instructor, :adapter, Instructor.Adapters.XAI)
         Application.put_env(:instructor, :xai, api_key: System.fetch_env!("XAI_API_KEY"))
 
+      :deep_seek ->
+        Application.put_env(:instructor, :adapter, Instructor.Adapters.DeepSeek)
+        Application.put_env(:instructor, :xai, api_key: System.fetch_env!("DEEPSEEK_API_KEY"))
+
       :openai ->
         Application.put_env(:instructor, :adapter, Instructor.Adapters.OpenAI)
         Application.put_env(:instructor, :openai, api_key: System.fetch_env!("OPENAI_API_KEY"))
@@ -68,6 +72,7 @@ defmodule InstructorTest do
         {:anthropic, [mode: :tools, model: "claude-3-5-haiku-latest", max_tokens: 1024]},
         {:xai, [mode: :tools, model: "grok-2-latest"]},
         {:xai, [mode: :json_schema, model: "grok-2-latest"]},
+        {:deep_seek, [mode: :json_schema, model: "deepseek-chat"]},
         {:ollama, [mode: :tools, model: "qwen2.5:7b"]},
         {:llamacpp, [mode: :json_schema, model: "qwen2.5:7b"]}
       ] do
