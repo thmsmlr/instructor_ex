@@ -50,7 +50,7 @@ defmodule Instructor.Adapters.Gemini do
       raise "Unsupported Gemini mode #{mode}. Supported modes: #{inspect(@supported_modes)}"
     end
 
-    # Format the messages into the correct format for Geminic
+    # Format the messages into the correct format for Gemini
     {messages, params} = Map.pop!(params, :messages)
 
     {system_instruction, contents} =
