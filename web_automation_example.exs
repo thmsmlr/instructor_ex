@@ -320,54 +320,59 @@ defmodule WebAutomation do
   end
 end
 
-# Main example code
-case System.argv() do
-  ["--help"] ->
-    IO.puts("Usage: ./web_automation_example.exs [search query] [--client proxy_lite|proxy_lite_3b] [--homepage URL]")
-    IO.puts("\nOptions:")
-    IO.puts("  --client proxy_lite    Use the original proxy-lite service (default: proxy_lite_3b)")
-    IO.puts("  --client proxy_lite_3b Use the proxy-lite-3b model (recommended)")
-    IO.puts("  --homepage URL         Set the starting URL (default: https://en.wikipedia.org)")
-    IO.puts("\nExample: ./web_automation_example.exs \"current weather in San Francisco\" --client proxy_lite_3b --homepage https://en.wikipedia.org")
-  
-  args ->
-    # Parse arguments
-    {query, options} = parse_args(args)
+defmodule WebAutomationExample do
+  def parse_args([]), do: {nil, []}
+  def parse_args([query | rest]), do: {query, parse_options(rest)}
+
+  defp parse_options([]), do: []
+  defp parse_options(["--client", "proxy_lite" | rest]), do: [client: :proxy_lite] ++ parse_options(rest)
+  defp parse_options(["--client", "proxy_lite_3b" | rest]), do: [client: :proxy_lite_3b] ++ parse_options(rest)
+  defp parse_options(["--homepage", url | rest]), do: [homepage: url] ++ parse_options(rest)
+  defp parse_options([_ | rest]), do: parse_options(rest)
+
+  def main(args) do
+    case args do
+      ["--help"] ->
+        IO.puts("Usage: ./web_automation_example.exs [search query] [--client proxy_lite|proxy_lite_3b] [--homepage URL]")
+        IO.puts("\nOptions:")
+        IO.puts("  --client proxy_lite    Use the original proxy-lite service (default: proxy_lite_3b)")
+        IO.puts("  --client proxy_lite_3b Use the proxy-lite-3b model (recommended)")
+        IO.puts("  --homepage URL         Set the starting URL (default: https://en.wikipedia.org)")
+        IO.puts("\nExample: ./web_automation_example.exs \"current weather in San Francisco\" --client proxy_lite_3b --homepage https://en.wikipedia.org")
     
-    if query == nil do
-      IO.puts("Using default query: \"current weather in San Francisco\"")
-      query = "current weather in San Francisco"
-    else
-      IO.puts("🚀 Performing web search for: #{query}")
-    end
-    
-    # Show selected options
-    client = Keyword.get(options, :client, :proxy_lite_3b)
-    homepage = Keyword.get(options, :homepage, "https://en.wikipedia.org")
-    IO.puts("Using client: #{client}, Homepage: #{homepage}")
-    
-    case WebAutomation.search_and_extract(query, options) do
-      {:ok, result} ->
-        IO.puts("\n✅ Task completed!")
-        IO.puts("\nSummary: #{result.summary}")
+      args ->
+        # Parse arguments
+        {query, options} = parse_args(args)
         
-        if result.answer && result.answer != "" do
-          IO.puts("\nAnswer: #{result.answer}")
+        if query == nil do
+          IO.puts("Using default query: \"current weather in San Francisco\"")
+          query = "current weather in San Francisco"
+        else
+          IO.puts("🚀 Performing web search for: #{query}")
         end
         
-        IO.puts("\nSteps taken: #{result.steps_taken || 0}")
-      
-      {:error, reason} ->
-        IO.puts("\n❌ ERROR: #{reason}")
+        # Show selected options
+        client = Keyword.get(options, :client, :proxy_lite_3b)
+        homepage = Keyword.get(options, :homepage, "https://en.wikipedia.org")
+        IO.puts("Using client: #{client}, Homepage: #{homepage}")
+        
+        case WebAutomation.search_and_extract(query, options) do
+          {:ok, result} ->
+            IO.puts("\n✅ Task completed!")
+            IO.puts("\nSummary: #{result.summary}")
+            
+            if result.answer && result.answer != "" do
+              IO.puts("\nAnswer: #{result.answer}")
+            end
+            
+            IO.puts("\nSteps taken: #{result.steps_taken || 0}")
+          
+          {:error, reason} ->
+            IO.puts("\n❌ ERROR: #{reason}")
+        end
     end
+  end
 end
 
-# Helper function to parse command line arguments
-defp parse_args([]), do: {nil, []}
-defp parse_args([query | rest]), do: {query, parse_options(rest)}
-
-defp parse_options([]), do: []
-defp parse_options(["--client", "proxy_lite" | rest]), do: [client: :proxy_lite] ++ parse_options(rest)
-defp parse_options(["--client", "proxy_lite_3b" | rest]), do: [client: :proxy_lite_3b] ++ parse_options(rest)
-defp parse_options(["--homepage", url | rest]), do: [homepage: url] ++ parse_options(rest)
-defp parse_options([_ | rest]), do: parse_options(rest) 
+# Run the script
+WebAutomationExample.main(System.argv()) 
