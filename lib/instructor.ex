@@ -538,7 +538,7 @@ defmodule Instructor do
             [sys_message | messages]
 
           :json_schema ->
-            [messages]
+            messages
 
           :tools ->
             [sys_message | messages]
