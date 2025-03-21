@@ -131,8 +131,11 @@ defmodule Instructor.JSONSchema do
        when is_ecto_schema(ecto_schema) do
     seen_schemas = MapSet.put(seen_schemas, ecto_schema)
 
+    embeds = ecto_schema.__schema__(:embeds)
+
     properties =
       ecto_schema.__schema__(:fields)
+      |> Enum.reject(fn field -> field in embeds end)
       |> Enum.map(fn field ->
         type = ecto_schema.__schema__(:type, field)
         value = for_type(type)
@@ -165,7 +168,29 @@ defmodule Instructor.JSONSchema do
       end)
       |> Enum.into(%{})
 
-    properties = Map.merge(properties, associations)
+    embeds =
+      ecto_schema.__schema__(:embeds)
+      |> Enum.map(&ecto_schema.__schema__(:embed, &1))
+      |> Enum.map(fn association ->
+        field = association.field
+        title = title_for(association.related)
+
+        value =
+          if association.cardinality == :many do
+            %{
+              items: %{"$ref": "#/$defs/#{title}"},
+              title: title,
+              type: "array"
+            }
+          else
+            %{"$ref": "#/$defs/#{title}"}
+          end
+
+        {field, value}
+      end)
+      |> Enum.into(%{})
+
+    properties = properties |> Map.merge(associations) |> Map.merge(embeds)
     required = Map.keys(properties) |> Enum.sort()
     title = title_for(ecto_schema)
 
@@ -372,6 +397,7 @@ defmodule Instructor.JSONSchema do
          {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
        )
        when is_ecto_schema(related) do
+    # , title: title_for(related), type: "object"}
     %{"$ref": "#/$defs/#{title_for(related)}"}
   end
 
@@ -447,7 +473,8 @@ defmodule Instructor.JSONSchema do
     |> maybe_call_with_path(fun, path, opts)
   end
 
-  defp do_traverse_and_update(tree, fun, path, opts), do: maybe_call_with_path(tree, fun, path, opts)
+  defp do_traverse_and_update(tree, fun, path, opts),
+    do: maybe_call_with_path(tree, fun, path, opts)
 
   defp maybe_call_with_path(value, fun, path, opts) do
     if Keyword.get(opts, :include_path, false) do
