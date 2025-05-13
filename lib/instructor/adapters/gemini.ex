@@ -253,6 +253,14 @@ defmodule Instructor.Adapters.Gemini do
     chunk
   end
 
+  # NEW: Fallback clause for :json_schema mode to handle non-data chunks
+  # This will catch chunks that don't match the pattern above (e.g., metadata or STOP events).
+  defp parse_stream_chunk_for_mode(:json_schema, _chunk) do
+    # Optionally, log the unhandled chunk structure for debugging:
+    # Logger.debug("Gemini adapter: received non-data stream chunk for :json_schema, returning empty. Chunk: #{inspect(chunk)}")
+    ""
+  end
+
   defp normalize_json_schema(schema) do
     JSONSchema.traverse_and_update(
       schema,
@@ -267,7 +275,7 @@ defmodule Instructor.Adapters.Gemini do
               raise """
               Invalid JSON Schema: object with no properties at path: #{inspect(path)}
 
-              Gemini does not support empty objects. This is likely because have have a naked :map type
+              Gemini does not support empty objects. This is likely because it uses a naked :map type
               without any fields at #{inspect(path)}. Try switching to an embedded schema instead.
               """
 
