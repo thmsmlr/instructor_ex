@@ -27,7 +27,7 @@ defmodule Instructor.Adapters.Gemini do
   alias Instructor.Adapters
   alias Instructor.JSONSchema
 
-  @supported_modes [:json_schema]
+  @supported_modes [:json, :json_schema]
 
   @doc """
   Run a completion against Google's Gemini API
@@ -98,35 +98,53 @@ defmodule Instructor.Adapters.Gemini do
     params = Map.put(params, :contents, contents)
 
     params =
-      case params do
-        %{response_format: %{json_schema: %{schema: schema}}} ->
-          generation_config =
-            generation_config
-            |> Map.put("response_mime_type", "application/json")
-            |> Map.put("response_schema", normalize_json_schema(schema))
-
+      case mode do
+        :json ->
+          generation_config = Map.put(generation_config, "response_mime_type", "application/json")
           params
           |> Map.put(:generationConfig, generation_config)
-          |> Map.delete(:response_format)
+          |> Map.delete(:response_format)  # Explicitly remove response_format
 
-        %{tools: tools} ->
-          tools = [
-            %{
-              function_declarations:
-                Enum.map(tools, fn %{function: tool} ->
-                  %{
-                    name: tool["name"],
-                    description: tool["description"],
-                    parameters: normalize_json_schema(tool["parameters"])
-                  }
-                end)
-            }
-          ]
+        :json_schema ->
+          case params do
+            %{response_format: %{json_schema: %{schema: schema}}} ->
+              generation_config =
+                generation_config
+                |> Map.put("response_mime_type", "application/json")
+                |> Map.put("response_schema", normalize_json_schema(schema))
 
-          params
-          |> Map.put(:generationConfig, generation_config)
-          |> Map.put(:tools, tools)
-          |> Map.delete(:tool_choice)
+              params
+              |> Map.put(:generationConfig, generation_config)
+              |> Map.delete(:response_format)
+
+            _ ->
+              params
+          end
+
+        :tools ->
+          case params do
+            %{tools: tools} ->
+              tools = [
+                %{
+                  function_declarations:
+                    Enum.map(tools, fn %{function: tool} ->
+                      %{
+                        name: tool["name"],
+                        description: tool["description"],
+                        parameters: normalize_json_schema(tool["parameters"])
+                      }
+                    end)
+                }
+              ]
+
+              params
+              |> Map.put(:generationConfig, generation_config)
+              |> Map.put(:tools, tools)
+              |> Map.delete(:tool_choice)
+
+            _ ->
+              params
+          end
 
         _ ->
           params
@@ -218,6 +236,14 @@ defmodule Instructor.Adapters.Gemini do
     {:ok, args}
   end
 
+  defp parse_response_for_mode(:json, %{
+        "candidates" => [
+          %{"content" => %{"parts" => [%{"text" => text}]}}
+        ]
+      }) do
+    Jason.decode(text)
+  end
+
   defp parse_response_for_mode(:json_schema, %{
          "candidates" => [
            %{"content" => %{"parts" => [%{"text" => text}]}}
@@ -239,6 +265,18 @@ defmodule Instructor.Adapters.Gemini do
          }
        ) do
     args
+  end
+
+  defp parse_stream_chunk_for_mode(:json, %{
+        "candidates" => [
+          %{
+            "content" => %{
+              "parts" => [%{"text" => chunk}]
+            }
+          }
+        ]
+      }) do
+    chunk
   end
 
   defp parse_stream_chunk_for_mode(:json_schema, %{
