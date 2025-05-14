@@ -100,7 +100,8 @@ defmodule Instructor.Adapters.Gemini do
     params =
       case mode do
         :json ->
-          generation_config = Map.put(generation_config, "response_mime_type", "application/json")
+          generation_config = Map.put(generation_config, :responseMimeType, "application/json")
+
           params
           |> Map.put(:generationConfig, generation_config)
           |> Map.delete(:response_format)  # Explicitly remove response_format
@@ -110,8 +111,8 @@ defmodule Instructor.Adapters.Gemini do
             %{response_format: %{json_schema: %{schema: schema}}} ->
               generation_config =
                 generation_config
-                |> Map.put("response_mime_type", "application/json")
-                |> Map.put("response_schema", normalize_json_schema(schema))
+                |> Map.put("responseMimeType", "application/json")
+                |> Map.put("responseSchema", normalize_json_schema(schema))
 
               params
               |> Map.put(:generationConfig, generation_config)
