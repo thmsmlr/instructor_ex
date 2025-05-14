@@ -64,7 +64,7 @@ defmodule InstructorTest do
         {:openai, [mode: :json, model: "gpt-4o-mini"]},
         {:openai, [mode: :json_schema, model: "gpt-4o-mini"]},
         {:groq, [mode: :tools, model: "llama-3.3-70b-versatile"]},
-        {:gemini, [mode: :json_schema, model: "gemini-2.0-flash"]},
+        {:gemini, [mode: :json_schema, model: "gemini-2.5-flash-preview-04-17"]},
         {:anthropic, [mode: :tools, model: "claude-3-5-haiku-latest", max_tokens: 1024]},
         {:xai, [mode: :tools, model: "grok-2-latest"]},
         {:xai, [mode: :json_schema, model: "grok-2-latest"]},
@@ -126,6 +126,24 @@ defmodule InstructorTest do
         assert is_float(score)
       end
 
+      defmodule AllEctoTypes.NestedObject do
+        use Ecto.Schema
+        use Instructor # If you want to add @llm_doc
+        @primary_key false
+        embedded_schema do
+          field :key1, :string # Must have at least one defined property
+        end
+      end
+
+      defmodule AllEctoTypes.NestedObjectTwo do
+        use Ecto.Schema
+        use Instructor
+        @primary_key false
+        embedded_schema do
+          field :item, :string # Example, if values were strings
+        end
+      end
+
       defmodule AllEctoTypes do
         use Ecto.Schema
         use Instructor
@@ -139,8 +157,13 @@ defmodule InstructorTest do
           field(:string, :string)
           # field(:binary, :binary)
           field(:array, {:array, :string})
-          field(:nested_object, :map)
-          field(:nested_object_two, {:map, :string})
+          if adapter == :gemini && params[:mode] == :json_schema do
+            embeds_one :nested_object, AllEctoTypes.NestedObject
+            embeds_one :nested_object_two, AllEctoTypes.NestedObjectTwo
+          else
+            field(:nested_object, :map)
+            field(:nested_object_two, {:map, :string})
+          end
           field(:decimal, :decimal)
           field(:date, :date)
           field(:time, :time)

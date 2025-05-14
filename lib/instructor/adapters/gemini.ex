@@ -27,7 +27,7 @@ defmodule Instructor.Adapters.Gemini do
   alias Instructor.Adapters
   alias Instructor.JSONSchema
 
-  @supported_modes [:json_schema]
+  @supported_modes [:json, :json_schema]
 
   @doc """
   Run a completion against Google's Gemini API
@@ -98,35 +98,54 @@ defmodule Instructor.Adapters.Gemini do
     params = Map.put(params, :contents, contents)
 
     params =
-      case params do
-        %{response_format: %{json_schema: %{schema: schema}}} ->
-          generation_config =
-            generation_config
-            |> Map.put("response_mime_type", "application/json")
-            |> Map.put("response_schema", normalize_json_schema(schema))
+      case mode do
+        :json ->
+          generation_config = Map.put(generation_config, :responseMimeType, "application/json")
 
           params
           |> Map.put(:generationConfig, generation_config)
-          |> Map.delete(:response_format)
+          |> Map.delete(:response_format)  # Explicitly remove response_format
 
-        %{tools: tools} ->
-          tools = [
-            %{
-              function_declarations:
-                Enum.map(tools, fn %{function: tool} ->
-                  %{
-                    name: tool["name"],
-                    description: tool["description"],
-                    parameters: normalize_json_schema(tool["parameters"])
-                  }
-                end)
-            }
-          ]
+        :json_schema ->
+          case params do
+            %{response_format: %{json_schema: %{schema: schema}}} ->
+              generation_config =
+                generation_config
+                |> Map.put("responseMimeType", "application/json")
+                |> Map.put("responseSchema", normalize_json_schema(schema))
 
-          params
-          |> Map.put(:generationConfig, generation_config)
-          |> Map.put(:tools, tools)
-          |> Map.delete(:tool_choice)
+              params
+              |> Map.put(:generationConfig, generation_config)
+              |> Map.delete(:response_format)
+
+            _ ->
+              params
+          end
+
+        :tools ->
+          case params do
+            %{tools: tools} ->
+              tools = [
+                %{
+                  function_declarations:
+                    Enum.map(tools, fn %{function: tool} ->
+                      %{
+                        name: tool["name"],
+                        description: tool["description"],
+                        parameters: normalize_json_schema(tool["parameters"])
+                      }
+                    end)
+                }
+              ]
+
+              params
+              |> Map.put(:generationConfig, generation_config)
+              |> Map.put(:tools, tools)
+              |> Map.delete(:tool_choice)
+
+            _ ->
+              params
+          end
 
         _ ->
           params
@@ -218,6 +237,14 @@ defmodule Instructor.Adapters.Gemini do
     {:ok, args}
   end
 
+  defp parse_response_for_mode(:json, %{
+        "candidates" => [
+          %{"content" => %{"parts" => [%{"text" => text}]}}
+        ]
+      }) do
+    Jason.decode(text)
+  end
+
   defp parse_response_for_mode(:json_schema, %{
          "candidates" => [
            %{"content" => %{"parts" => [%{"text" => text}]}}
@@ -241,6 +268,18 @@ defmodule Instructor.Adapters.Gemini do
     args
   end
 
+  defp parse_stream_chunk_for_mode(:json, %{
+        "candidates" => [
+          %{
+            "content" => %{
+              "parts" => [%{"text" => chunk}]
+            }
+          }
+        ]
+      }) do
+    chunk
+  end
+
   defp parse_stream_chunk_for_mode(:json_schema, %{
          "candidates" => [
            %{
@@ -251,6 +290,14 @@ defmodule Instructor.Adapters.Gemini do
          ]
        }) do
     chunk
+  end
+
+  # NEW: Fallback clause for :json_schema mode to handle non-data chunks
+  # This will catch chunks that don't match the pattern above (e.g., metadata or STOP events).
+  defp parse_stream_chunk_for_mode(:json_schema, _chunk) do
+    # Optionally, log the unhandled chunk structure for debugging:
+    # Logger.debug("Gemini adapter: received non-data stream chunk for :json_schema, returning empty. Chunk: #{inspect(chunk)}")
+    ""
   end
 
   defp normalize_json_schema(schema) do
@@ -267,7 +314,7 @@ defmodule Instructor.Adapters.Gemini do
               raise """
               Invalid JSON Schema: object with no properties at path: #{inspect(path)}
 
-              Gemini does not support empty objects. This is likely because have have a naked :map type
+              Gemini does not support empty objects. This is likely because it uses a naked :map type
               without any fields at #{inspect(path)}. Try switching to an embedded schema instead.
               """
 
