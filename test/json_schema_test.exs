@@ -188,7 +188,7 @@ defmodule JSONSchemaTest do
           "format" => "date",
           "title" => "date",
           "type" => "string",
-          "description" => "ISO8601 Date, e.g. \"2024-07-20\""
+          "description" => "ISO8601 Date, [yyyy]-[mm]-[dd], e.g. \"2024-07-20\""
         },
         "decimal" => %{
           "format" => "float",
@@ -227,14 +227,14 @@ defmodule JSONSchemaTest do
           "format" => "date-time",
           "title" => "naive_datetime",
           "type" => "string",
-          "description" => "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00\""
+          "description" => "ISO8601 DateTime, [yyyy]-[mm]-[dd]T[hh]:[mm]:[ss], e.g. \"2024-07-20T12:00:00\""
         },
         "naive_datetime_usec" => %{
           "format" => "date-time",
           "title" => "naive_datetime_usec",
           "type" => "string",
           "description" =>
-            "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000\""
+            "ISO8601 DateTime with microseconds, [yyyy]-[mm]-[dd]T[hh]:[mm]:[ss].[microseconds], e.g. \"2024-07-20T12:00:00.000000\""
         },
         "string" => %{
           "description" => "String, e.g. 'hello'",
@@ -245,26 +245,26 @@ defmodule JSONSchemaTest do
           "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$",
           "title" => "time",
           "type" => "string",
-          "description" => "ISO8601 Time, e.g. \"12:00:00\""
+          "description" => "ISO8601 Time, [hh]:[mm]:[ss], e.g. \"00:12:04\""
         },
         "time_usec" => %{
           "pattern" => "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$",
           "title" => "time_usec",
           "type" => "string",
-          "description" => "ISO8601 Time with microseconds, e.g. \"12:00:00.000000\""
+          "description" => "ISO8601 Time with microseconds, [hh]:[mm]:[ss].[microseconds], e.g. \"12:00:00.000000\""
         },
         "utc_datetime" => %{
           "format" => "date-time",
           "title" => "utc_datetime",
           "type" => "string",
-          "description" => "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00Z\""
+          "description" => "ISO8601 DateTime, [yyyy]-[mm]-[dd]T[hh]:[mm]:[ss]Z, e.g. \"2024-07-20T12:00:00Z\""
         },
         "utc_datetime_usec" => %{
           "format" => "date-time",
           "title" => "utc_datetime_usec",
           "type" => "string",
           "description" =>
-            "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000Z\""
+            "ISO8601 DateTime with microseconds, [yyyy]-[mm]-[dd]T[hh]:[mm]:[ss].[microseconds]Z, e.g. \"2024-07-20T12:00:00.000000Z\""
         }
       },
       "required" => [

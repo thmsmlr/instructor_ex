@@ -59,7 +59,7 @@ defmodule InstructorTest do
   def mock_stream_response(_, _, _), do: nil
 
   for {adapter, params} <- [
-        {:mock_openai, [mode: :tools, model: "gpt-4.1-mini"]},
+        {:openai_mock, [mode: :tools, model: "gpt-4.1-mini"]},
         {:openai, [mode: :tools, model: "gpt-4.1-mini"]},
         {:openai, [mode: :json, model: "gpt-4.1-mini"]},
         {:openai, [mode: :json_schema, model: "gpt-4.1-mini"]},
