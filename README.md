@@ -53,7 +53,7 @@ Mix.install([:instructor])
 
 defmodule SpamPrediction do
   use Ecto.Schema
-  use Validator
+  use Instructor
 
   @llm_doc """
   ## Field Descriptions:
