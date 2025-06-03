@@ -299,6 +299,18 @@ defmodule JSONSchemaTest do
       @primary_key false
       embedded_schema do
         field(:string, :string)
+
+        embeds_many :many, Many do
+          field(:string, :string)
+
+          embeds_one :one, One do
+            field(:string, :string)
+
+            embeds_many :many, Many do
+              field(:string, :string)
+            end
+          end
+        end
       end
     end
 
@@ -324,19 +336,76 @@ defmodule JSONSchemaTest do
               "title" => "string",
               "type" => "string",
               "description" => "String, e.g. 'hello'"
+            },
+            "many" => %{
+              "items" => %{"$ref" => "#/$defs/JSONSchemaTest.Embedded.Many"},
+              "title" => "JSONSchemaTest.Embedded.Many",
+              "type" => "array"
             }
           },
-          "required" => ["string"],
+          "required" => ["many", "string"],
           "title" => "JSONSchemaTest.Embedded",
           "type" => "object",
           "additionalProperties" => false
+        },
+        "JSONSchemaTest.Embedded.Many" => %{
+          "title" => "JSONSchemaTest.Embedded.Many",
+          "type" => "object",
+          "required" => ["id", "one", "string"],
+          "additionalProperties" => false,
+          "description" => "",
+          "properties" => %{
+            "string" => %{
+              "title" => "string",
+              "type" => "string",
+              "description" => "String, e.g. 'hello'"
+            },
+            "id" => %{"title" => "id", "type" => "string"},
+            "one" => %{
+              "$ref" => "#/$defs/JSONSchemaTest.Embedded.Many.One"
+            }
+          }
+        },
+        "JSONSchemaTest.Embedded.Many.One" => %{
+          "title" => "JSONSchemaTest.Embedded.Many.One",
+          "type" => "object",
+          "required" => ["id", "many", "string"],
+          "additionalProperties" => false,
+          "description" => "",
+          "properties" => %{
+            "id" => %{"title" => "id", "type" => "string"},
+            "string" => %{
+              "title" => "string",
+              "type" => "string",
+              "description" => "String, e.g. 'hello'"
+            },
+            "many" => %{
+              "items" => %{"$ref" => "#/$defs/JSONSchemaTest.Embedded.Many.One.Many"},
+              "title" => "JSONSchemaTest.Embedded.Many.One.Many",
+              "type" => "array"
+            }
+          }
+        },
+        "JSONSchemaTest.Embedded.Many.One.Many" => %{
+          "title" => "JSONSchemaTest.Embedded.Many.One.Many",
+          "type" => "object",
+          "required" => ["id", "string"],
+          "additionalProperties" => false,
+          "description" => "",
+          "properties" => %{
+            "id" => %{"title" => "id", "type" => "string"},
+            "string" => %{
+              "title" => "string",
+              "type" => "string",
+              "description" => "String, e.g. 'hello'"
+            }
+          }
         }
       },
       "description" => "",
       "properties" => %{
         "embedded" => %{
-          "$ref" => "#/$defs/JSONSchemaTest.Embedded",
-          "title" => "embedded"
+          "$ref" => "#/$defs/JSONSchemaTest.Embedded"
         }
       },
       "required" => ["embedded"],
