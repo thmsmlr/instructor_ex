@@ -23,7 +23,6 @@ defmodule Instructor.Adapters.Anthropic do
   """
 
   @behaviour Instructor.Adapter
-  alias Instructor.Adapters
   alias Instructor.SSEStreamParser
 
   @impl true
@@ -61,6 +60,41 @@ defmodule Instructor.Adapters.Anthropic do
     else
       do_chat_completion(mode, params, config)
     end
+  end
+
+  @impl true
+  def reask_messages(raw_response, params, _config) do
+    reask_messages_for_mode(params[:mode], raw_response)
+  end
+
+  defp reask_messages_for_mode(:tools, %{"content" => [%{"input" => args, "type" => "tool_use", "id" => id, "name" => name}]}) do
+    [
+      %{
+        role: "assistant",
+        content: [
+          %{
+            type: "tool_use",
+            id: id,
+            name: name,
+            input: args
+          }
+        ]
+      },
+      %{
+        role: "user",
+        content: [
+          %{
+            type: "tool_result",
+            tool_use_id: id,
+            content: Jason.encode!(args)
+          }
+        ]
+      }
+    ]
+  end
+
+  defp reask_messages_for_mode(_mode, _raw_response) do
+    []
   end
 
   defp do_chat_completion(mode, params, config) do
@@ -144,9 +178,6 @@ defmodule Instructor.Adapters.Anthropic do
   defp parse_response_for_mode(:tools, %{"content" => [%{"input" => args, "type" => "tool_use"}]}) do
     args
   end
-
-  @impl true
-  defdelegate reask_messages(raw_response, params, config), to: Adapters.OpenAI
 
   defp url(config), do: api_url(config) <> "/v1/messages"
 

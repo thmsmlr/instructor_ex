@@ -24,7 +24,6 @@ defmodule Instructor.Adapters.Gemini do
 
   @behaviour Instructor.Adapter
   alias Instructor.SSEStreamParser
-  alias Instructor.Adapters
   alias Instructor.JSONSchema
 
   @supported_modes [:json_schema]
@@ -59,8 +58,12 @@ defmodule Instructor.Adapters.Gemini do
         %{role: "assistant", content: content}, {system_instructions, history} ->
           {system_instructions, [%{role: "model", parts: [%{text: content}]} | history]}
 
-        %{role: "user", content: content}, {system_instructions, history} ->
+        %{role: "user", content: content}, {system_instructions, history}
+        when is_binary(content) ->
           {system_instructions, [%{role: "user", parts: [%{text: content}]} | history]}
+
+        %{role: "user", content: content}, {system_instructions, history} ->
+          {system_instructions, [%{role: "user", parts: [content]} | history]}
 
         %{role: "system", content: content}, {system_instructions, history} ->
           part = %{text: content}
@@ -137,6 +140,28 @@ defmodule Instructor.Adapters.Gemini do
     else
       do_chat_completion(mode, params, config)
     end
+  end
+
+  @impl true
+  def reask_messages(raw_response, params, _config) do
+    reask_messages_for_mode(params[:mode], raw_response)
+  end
+
+  defp reask_messages_for_mode(:tools, %{
+         "candidates" => [
+           %{"content" => %{"parts" => [%{"functionCall" => %{"name" => name, "args" => args}}]}}
+         ]
+       }) do
+    [
+      %{
+        role: "model",
+        parts: [%{functionCall: %{name: name, args: args}}]
+      }
+    ]
+  end
+
+  defp reask_messages_for_mode(_mode, _raw_response) do
+    []
   end
 
   defp do_streaming_chat_completion(mode, params, config) do
@@ -253,6 +278,16 @@ defmodule Instructor.Adapters.Gemini do
     chunk
   end
 
+  defp parse_stream_chunk_for_mode(:json_schema, %{
+         "candidates" => [
+           %{
+             "finishReason" => "STOP"
+           }
+         ]
+       }) do
+    ""
+  end
+
   defp normalize_json_schema(schema) do
     JSONSchema.traverse_and_update(
       schema,
@@ -349,9 +384,6 @@ defmodule Instructor.Adapters.Gemini do
           end
         end
       )
-
-  @impl true
-  defdelegate reask_messages(raw_response, params, config), to: Adapters.OpenAI
 
   defp url(config), do: api_url(config) <> ":api_version/models/:model"
   defp api_url(config), do: Keyword.fetch!(config, :api_url)

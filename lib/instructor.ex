@@ -231,6 +231,14 @@ defmodule Instructor do
   def cast_all({data, types}, params) do
     fields = Map.keys(types)
 
+    types =
+      for {field, type} <- types, into: %{} do
+        case type do
+          :duration -> {field, Instructor.Types.Duration}
+          _ -> {field, type}
+        end
+      end
+
     {data, types}
     |> Ecto.Changeset.cast(params, fields)
     |> Ecto.Changeset.validate_required(fields)
@@ -247,9 +255,29 @@ defmodule Instructor do
       |> MapSet.difference(embedded_fields)
       |> MapSet.difference(associated_fields)
 
+    fields_with_overrides =
+      for field <- fields do
+        case response_model.__schema__(:type, field) do
+          :duration -> {field, Instructor.Types.Duration}
+          _ -> nil
+        end
+      end
+      |> Enum.filter(& &1)
+      |> Map.new()
+
+    fields =
+      fields
+      |> MapSet.difference(MapSet.new(Map.keys(fields_with_overrides)))
+
     changeset =
       schema
       |> Ecto.Changeset.cast(params, fields |> MapSet.to_list())
+
+    override_changeset =
+      {schema, fields_with_overrides}
+      |> cast_all(params)
+
+    changeset = Ecto.Changeset.merge(changeset, override_changeset)
 
     changeset =
       for field <- embedded_fields, reduce: changeset do

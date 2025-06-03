@@ -59,17 +59,17 @@ defmodule InstructorTest do
   def mock_stream_response(_, _, _), do: nil
 
   for {adapter, params} <- [
-        {:openai_mock, [mode: :tools, model: "gpt-4o-mini"]},
-        {:openai, [mode: :tools, model: "gpt-4o-mini"]},
-        {:openai, [mode: :json, model: "gpt-4o-mini"]},
-        {:openai, [mode: :json_schema, model: "gpt-4o-mini"]},
-        {:groq, [mode: :tools, model: "llama-3.3-70b-versatile"]},
-        {:gemini, [mode: :json_schema, model: "gemini-2.0-flash"]},
-        {:anthropic, [mode: :tools, model: "claude-3-5-haiku-latest", max_tokens: 1024]},
+        {:mock_openai, [mode: :tools, model: "gpt-4.1-mini"]},
+        {:openai, [mode: :tools, model: "gpt-4.1-mini"]},
+        {:openai, [mode: :json, model: "gpt-4.1-mini"]},
+        {:openai, [mode: :json_schema, model: "gpt-4.1-mini"]},
+        {:llamacpp, [mode: :json_schema, model: "llama3.1-8b-instruct"]},
+        {:groq, [mode: :tools, model: "llama3-groq-8b-8192-tool-use-preview"]},
+        {:gemini, [mode: :json_schema, model: "gemini-2.5-flash-preview-05-20"]},
         {:xai, [mode: :tools, model: "grok-2-latest"]},
         {:xai, [mode: :json_schema, model: "grok-2-latest"]},
-        {:ollama, [mode: :tools, model: "qwen2.5:7b"]},
-        {:llamacpp, [mode: :json_schema, model: "qwen2.5:7b"]}
+        {:ollama, [mode: :tools, model: "llama3.1"]},
+        {:anthropic, [mode: :tools, model: "claude-3-5-sonnet-20240620", max_tokens: 1024]}
       ] do
     describe "#{inspect(adapter)} #{params[:mode]} #{params[:model]}" do
       @tag adapter: adapter
@@ -149,6 +149,7 @@ defmodule InstructorTest do
           field(:naive_datetime_usec, :naive_datetime_usec)
           field(:utc_datetime, :utc_datetime)
           field(:utc_datetime_usec, :utc_datetime_usec)
+          field(:duration, :duration)
         end
       end
 
@@ -170,7 +171,8 @@ defmodule InstructorTest do
           naive_datetime: "2021-08-01T12:00:00",
           naive_datetime_usec: "2021-08-01T12:00:00.000000",
           utc_datetime: "2021-08-01T12:00:00Z",
-          utc_datetime_usec: "2021-08-01T12:00:00.000000Z"
+          utc_datetime_usec: "2021-08-01T12:00:00.000000Z",
+          duration: "PT1H"
         }
 
         mock_response(unquote(adapter), :tools, expected)
@@ -201,7 +203,8 @@ defmodule InstructorTest do
                       "utc_datetime_usec": "2021-08-01T12:00:00.000000Z",
                       "time_usec": "12:00:00.000000",
                       "nested_object": { "key": "value" },
-                      "nested_object_two": { "key_two": "value_two" }
+                      "nested_object_two": { "key_two": "value_two" },
+                      "duration": "PT1H"
                     }
                   """
                 }
@@ -226,7 +229,8 @@ defmodule InstructorTest do
                   naive_datetime: naive_datetime,
                   naive_datetime_usec: naive_datetime_usec,
                   utc_datetime: utc_datetime,
-                  utc_datetime_usec: utc_datetime_usec
+                  utc_datetime_usec: utc_datetime_usec,
+                  duration: duration
                 }} = result
 
         assert is_binary(binary_id)
@@ -245,6 +249,7 @@ defmodule InstructorTest do
         assert %NaiveDateTime{} = naive_datetime_usec
         assert %DateTime{} = utc_datetime
         assert %DateTime{} = utc_datetime_usec
+        assert %Duration{} = duration
       end
 
       defmodule President do
@@ -356,57 +361,46 @@ defmodule InstructorTest do
         assert [ok: %President{}, ok: %President{}] = seventh
       end
 
-      defmodule ListOfNumbers do
+      defmodule RunAround do
         use Ecto.Schema
-        use Instructor
 
         @primary_key false
         embedded_schema do
-          field(:numbers, {:array, :integer})
+          field(:number, :integer)
         end
 
-        @impl true
+
         def validate_changeset(changeset) do
           changeset
-          |> Ecto.Changeset.validate_change(:numbers, fn _, numbers ->
-            case numbers do
-              [1337 | _] ->
-                []
-
-              _ ->
-                [numbers: "Make sure the first number is 1337."]
+          |> Ecto.Changeset.validate_change(:number, fn :number, number ->
+            if number > 10 do
+              []
+            else
+              [number: "Oops, nevermind I meant a number greater than 10"]
             end
           end)
         end
       end
 
       @tag adapter: adapter
-      test "max_retries" do
-        mock_response(unquote(adapter), :tools, %{numbers: [2, 42]})
+      test "reask" do
+        mock_response(unquote(adapter), :tools, %{number: 11})
 
-        result =
-          Instructor.chat_completion(
-            Keyword.merge(unquote(params),
-              max_retries: 0,
-              response_model: ListOfNumbers,
-              messages: [%{role: "user", content: "Give me a couple of numbers"}]
-            )
-          )
-
-        assert {:error, %Ecto.Changeset{}} = result
-
-        mock_response(unquote(adapter), :tools, %{numbers: [1337, 42]})
 
         result =
           Instructor.chat_completion(
             Keyword.merge(unquote(params),
               max_retries: 3,
-              response_model: ListOfNumbers,
-              messages: [%{role: "user", content: "Give me a couple of numbers"}]
+              response_model: RunAround,
+              messages: [
+                %{role: "user", content: "Give me a number between 1 and 5"}
+              ]
             )
           )
 
-        assert {:ok, %ListOfNumbers{numbers: [1337 | _]}} = result
+        assert {:ok, %{number: number}} = result
+        assert number >= 10
+
       end
     end
   end
