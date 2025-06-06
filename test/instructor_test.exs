@@ -73,6 +73,43 @@ defmodule InstructorTest do
       ] do
     describe "#{inspect(adapter)} #{params[:mode]} #{params[:model]}" do
       @tag adapter: adapter
+      test "cast_all ignores fields marked with @llm_ignore" do
+        defmodule TestSchemaWithIgnore do
+          use Ecto.Schema
+          use Instructor
+
+          @llm_ignore [:id, :created_at]
+          @primary_key false
+          embedded_schema do
+            field(:id, :binary_id)
+            field(:name, :string)
+            field(:email, :string)
+            field(:created_at, :utc_datetime)
+          end
+        end
+
+        schema = struct(TestSchemaWithIgnore)
+        params = %{
+          "id" => "550e8400-e29b-41d4-a716-446655440000",
+          "name" => "John Doe",
+          "email" => "john@example.com",
+          "created_at" => "2024-01-01T00:00:00Z"
+        }
+
+        changeset = Instructor.cast_all(schema, params)
+        changes = changeset.changes
+
+        # Only non-ignored fields should be in changes
+        assert Map.has_key?(changes, :name)
+        assert Map.has_key?(changes, :email)
+        refute Map.has_key?(changes, :id)
+        refute Map.has_key?(changes, :created_at)
+
+        assert changes.name == "John Doe"
+        assert changes.email == "john@example.com"
+      end
+
+      @tag adapter: adapter
       test "schemaless ecto" do
         expected = %{name: "George Washington", birth_date: ~D[1732-02-22]}
         mock_response(unquote(adapter), :tools, expected)
