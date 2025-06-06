@@ -534,4 +534,119 @@ defmodule JSONSchemaTest do
 
     assert json_schema == expected_json_schema
   end
+
+  test "excludes fields marked with @llm_ignore" do
+    defmodule DemoWithIgnoredFields do
+      use Ecto.Schema
+      use Instructor
+
+      @llm_ignore [:id, :created_at]
+      @primary_key false
+      embedded_schema do
+        field(:id, :binary_id)
+        field(:name, :string)
+        field(:email, :string)
+        field(:created_at, :utc_datetime)
+      end
+    end
+
+    json_schema =
+      JSONSchema.from_ecto_schema(DemoWithIgnoredFields)
+      |> Jason.decode!()
+
+    expected_json_schema = %{
+      "description" => "",
+      "properties" => %{
+        "name" => %{
+          "title" => "name",
+          "type" => "string",
+          "description" => "String, e.g. 'hello'"
+        },
+        "email" => %{
+          "title" => "email",
+          "type" => "string",
+          "description" => "String, e.g. 'hello'"
+        }
+      },
+      "required" => ["email", "name"],
+      "title" => "JSONSchemaTest.DemoWithIgnoredFields",
+      "type" => "object",
+      "additionalProperties" => false
+    }
+
+    assert json_schema == expected_json_schema
+  end
+
+  test "excludes single field marked with @llm_ignore" do
+    defmodule DemoWithSingleIgnoredField do
+      use Ecto.Schema
+      use Instructor
+
+      @llm_ignore :id
+      @primary_key false
+      embedded_schema do
+        field(:id, :binary_id)
+        field(:name, :string)
+      end
+    end
+
+    json_schema =
+      JSONSchema.from_ecto_schema(DemoWithSingleIgnoredField)
+      |> Jason.decode!()
+
+    expected_json_schema = %{
+      "description" => "",
+      "properties" => %{
+        "name" => %{
+          "title" => "name",
+          "type" => "string",
+          "description" => "String, e.g. 'hello'"
+        }
+      },
+      "required" => ["name"],
+      "title" => "JSONSchemaTest.DemoWithSingleIgnoredField",
+      "type" => "object",
+      "additionalProperties" => false
+    }
+
+    assert json_schema == expected_json_schema
+  end
+
+  test "works normally when no @llm_ignore is specified" do
+    defmodule DemoWithoutIgnore do
+      use Ecto.Schema
+      use Instructor
+
+      @primary_key false
+      embedded_schema do
+        field(:id, :binary_id)
+        field(:name, :string)
+      end
+    end
+
+    json_schema =
+      JSONSchema.from_ecto_schema(DemoWithoutIgnore)
+      |> Jason.decode!()
+
+    expected_json_schema = %{
+      "description" => "",
+      "properties" => %{
+        "id" => %{
+          "title" => "id",
+          "type" => "string"
+        },
+        "name" => %{
+          "title" => "name",
+          "type" => "string",
+          "description" => "String, e.g. 'hello'"
+        }
+      },
+      "required" => ["id", "name"],
+      "title" => "JSONSchemaTest.DemoWithoutIgnore",
+      "type" => "object",
+      "additionalProperties" => false
+    }
+
+    assert json_schema == expected_json_schema
+  end
 end

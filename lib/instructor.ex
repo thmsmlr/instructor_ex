@@ -249,11 +249,13 @@ defmodule Instructor do
     fields = response_model.__schema__(:fields) |> MapSet.new()
     embedded_fields = response_model.__schema__(:embeds) |> MapSet.new()
     associated_fields = response_model.__schema__(:associations) |> MapSet.new()
+    ignored_fields = get_ignored_fields(response_model) |> MapSet.new()
 
     fields =
       fields
       |> MapSet.difference(embedded_fields)
       |> MapSet.difference(associated_fields)
+      |> MapSet.difference(ignored_fields)
 
     fields_with_overrides =
       for field <- fields do
@@ -637,16 +639,34 @@ defmodule Instructor do
     end
   end
 
+  defp get_ignored_fields(response_model) when is_ecto_schema(response_model) do
+    if function_exported?(response_model, :__llm_ignore__, 0) do
+      response_model.__llm_ignore__()
+    else
+      []
+    end
+  end
+
+  defp get_ignored_fields(_), do: []
+
   defmacro __using__(_opts) do
     quote do
       use Instructor.Validator
 
       Module.register_attribute(__MODULE__, :llm_doc, persist: true, accumulate: true)
+      Module.register_attribute(__MODULE__, :llm_ignore, persist: true, accumulate: true)
 
       def __llm_doc__ do
         case __MODULE__.__info__(:attributes)[:llm_doc] do
           [doc | _] -> doc
           _ -> nil
+        end
+      end
+
+      def __llm_ignore__ do
+        case __MODULE__.__info__(:attributes)[:llm_ignore] do
+          nil -> []
+          list -> List.flatten(list)
         end
       end
     end

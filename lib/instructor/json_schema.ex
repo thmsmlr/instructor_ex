@@ -125,6 +125,16 @@ defmodule Instructor.JSONSchema do
 
   defp fetch_old_ecto_schema_doc(_), do: nil
 
+  defp should_ignore_field?(ecto_schema, field) when is_ecto_schema(ecto_schema) do
+    if function_exported?(ecto_schema, :__llm_ignore__, 0) do
+      field in ecto_schema.__llm_ignore__()
+    else
+      false
+    end
+  end
+
+  defp should_ignore_field?(_, _), do: false
+
   defp bfs_from_ecto_schema([], _seen_schemas), do: []
 
   defp bfs_from_ecto_schema([ecto_schema | rest], seen_schemas)
@@ -133,6 +143,7 @@ defmodule Instructor.JSONSchema do
 
     properties =
       ecto_schema.__schema__(:fields)
+      |> Enum.reject(&should_ignore_field?(ecto_schema, &1))
       |> Enum.map(fn field ->
         type = ecto_schema.__schema__(:type, field)
         value = for_type(type)
