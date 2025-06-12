@@ -9,11 +9,11 @@ defmodule Instructor.JSONSchema do
     Note: This will output a correct JSON Schema for the given Ecto schema, but
     it will not necessarily be optimal, nor support all Ecto types.
   """
-  def from_ecto_schema(ecto_schema) do
+  def from_ecto_schema(ecto_schema, schema_context \\ %{}) do
     do_deprecation_warning(ecto_schema)
 
     defs =
-      for schema <- bfs_from_ecto_schema([ecto_schema], %MapSet{}), into: %{} do
+      for schema <- bfs_from_ecto_schema([ecto_schema], %MapSet{}, schema_context), into: %{} do
         {schema.title, schema}
       end
 
@@ -125,9 +125,9 @@ defmodule Instructor.JSONSchema do
 
   defp fetch_old_ecto_schema_doc(_), do: nil
 
-  defp bfs_from_ecto_schema([], _seen_schemas), do: []
+  defp bfs_from_ecto_schema([], _seen_schemas, _schema_context), do: []
 
-  defp bfs_from_ecto_schema([ecto_schema | rest], seen_schemas)
+  defp bfs_from_ecto_schema([ecto_schema | rest], seen_schemas, schema_context)
        when is_ecto_schema(ecto_schema) do
     seen_schemas = MapSet.put(seen_schemas, ecto_schema)
 
@@ -135,7 +135,7 @@ defmodule Instructor.JSONSchema do
       ecto_schema.__schema__(:fields)
       |> Enum.map(fn field ->
         type = ecto_schema.__schema__(:type, field)
-        value = for_type(type)
+        value = for_type(type, schema_context)
         value = Map.merge(%{title: Atom.to_string(field)}, value)
 
         {field, value}
@@ -195,10 +195,10 @@ defmodule Instructor.JSONSchema do
         description: fetch_ecto_schema_doc(ecto_schema) || ""
       }
 
-    [schema | bfs_from_ecto_schema(rest, seen_schemas)]
+    [schema | bfs_from_ecto_schema(rest, seen_schemas, schema_context)]
   end
 
-  defp bfs_from_ecto_schema([ecto_types | rest], seen_schemas)
+  defp bfs_from_ecto_schema([ecto_types | rest], seen_schemas, schema_context)
        when is_ecto_types(ecto_types) do
     properties =
       for {field, type} <- ecto_types, into: %{} do
@@ -229,7 +229,7 @@ defmodule Instructor.JSONSchema do
         properties: properties
       }
 
-    [schema | bfs_from_ecto_schema(rest, seen_schemas)]
+    [schema | bfs_from_ecto_schema(rest, seen_schemas, schema_context)]
   end
 
   defp title_for(ecto_schema) when is_ecto_schema(ecto_schema) do
@@ -261,17 +261,17 @@ defmodule Instructor.JSONSchema do
 
   defp find_all_values(_, _pred), do: []
 
-  defp for_type(:any), do: %{}
-  defp for_type(:id), do: %{type: "integer", description: "Integer, e.g. 1"}
-  defp for_type(:binary_id), do: %{type: "string"}
-  defp for_type(:integer), do: %{type: "integer", description: "Integer, e.g. 1"}
-  defp for_type(:float), do: %{type: "number", description: "Float, e.g. 1.27", format: "float"}
-  defp for_type(:boolean), do: %{type: "boolean", description: "Boolean, e.g. true"}
-  defp for_type(:string), do: %{type: "string", description: "String, e.g. 'hello'"}
+  defp for_type(:any, _), do: %{}
+  defp for_type(:id, _), do: %{type: "integer", description: "Integer, e.g. 1"}
+  defp for_type(:binary_id, _), do: %{type: "string"}
+  defp for_type(:integer, _), do: %{type: "integer", description: "Integer, e.g. 1"}
+  defp for_type(:float, _), do: %{type: "number", description: "Float, e.g. 1.27", format: "float"}
+  defp for_type(:boolean, _), do: %{type: "boolean", description: "Boolean, e.g. true"}
+  defp for_type(:string, _), do: %{type: "string", description: "String, e.g. 'hello'"}
   # defp for_type(:binary), do: %{type: "unsupported"}
-  defp for_type({:array, type}), do: %{type: "array", items: for_type(type)}
+  defp for_type({:array, type}, _), do: %{type: "array", items: for_type(type)}
 
-  defp for_type(:map),
+  defp for_type(:map, _),
     do: %{
       type: "object",
       properties: %{},
@@ -279,7 +279,7 @@ defmodule Instructor.JSONSchema do
       description: "An object with arbitrary keys and values, e.g. { key: value }"
     }
 
-  defp for_type({:map, type}),
+  defp for_type({:map, type}, _),
     do: %{
       type: "object",
       properties: %{},
@@ -287,47 +287,47 @@ defmodule Instructor.JSONSchema do
       description: "An object with values of a type #{inspect(type)}, e.g. { key: value }"
     }
 
-  defp for_type(:decimal), do: %{type: "number", format: "float"}
+  defp for_type(:decimal, _), do: %{type: "number", format: "float"}
 
-  defp for_type(:date),
+  defp for_type(:date, _),
     do: %{type: "string", description: "ISO8601 Date, e.g. \"2024-07-20\"", format: "date"}
 
-  defp for_type(:time),
+  defp for_type(:time, _),
     do: %{
       type: "string",
       description: "ISO8601 Time, e.g. \"12:00:00\"",
       pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}$"
     }
 
-  defp for_type(:time_usec),
+  defp for_type(:time_usec, _),
     do: %{
       type: "string",
       description: "ISO8601 Time with microseconds, e.g. \"12:00:00.000000\"",
       pattern: "^[0-9]{2}:?[0-9]{2}:?[0-9]{2}.[0-9]{6}$"
     }
 
-  defp for_type(:naive_datetime),
+  defp for_type(:naive_datetime, _),
     do: %{
       type: "string",
       description: "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00\"",
       format: "date-time"
     }
 
-  defp for_type(:naive_datetime_usec),
+  defp for_type(:naive_datetime_usec, _),
     do: %{
       type: "string",
       description: "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000\"",
       format: "date-time"
     }
 
-  defp for_type(:utc_datetime),
+  defp for_type(:utc_datetime, _),
     do: %{
       type: "string",
       description: "ISO8601 DateTime, e.g. \"2024-07-20T12:00:00Z\"",
       format: "date-time"
     }
 
-  defp for_type(:utc_datetime_usec),
+  defp for_type(:utc_datetime_usec, _),
     do: %{
       type: "string",
       description: "ISO8601 DateTime with microseconds, e.g. \"2024-07-20T12:00:00.000000Z\"",
@@ -335,7 +335,7 @@ defmodule Instructor.JSONSchema do
     }
 
   defp for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
+         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}, _
        )
        when is_ecto_schema(related) do
     title = title_for(related)
@@ -348,7 +348,7 @@ defmodule Instructor.JSONSchema do
   end
 
   defp for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}
+         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :many, related: related}}}, _
        )
        when is_ecto_types(related) do
     properties =
@@ -369,14 +369,14 @@ defmodule Instructor.JSONSchema do
   end
 
   defp for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
+         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}, _
        )
        when is_ecto_schema(related) do
     %{"$ref": "#/$defs/#{title_for(related)}"}
   end
 
   defp for_type(
-         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}
+         {:parameterized, {Ecto.Embedded, %Ecto.Embedded{cardinality: :one, related: related}}}, _
        )
        when is_ecto_types(related) do
     properties =
@@ -394,11 +394,19 @@ defmodule Instructor.JSONSchema do
     }
   end
 
-  defp for_type({:parameterized, {Ecto.Enum, %{mappings: mappings}}}) do
+  defp for_type({:parameterized, {Ecto.Enum, %{mappings: mappings}}}, _) do
     %{
       type: "string",
       enum: Keyword.keys(mappings)
     }
+  end
+
+  defp for_type({:parameterized, {mod, opts}}, schema_context) when is_atom(mod) do
+    if function_exported?(mod, :to_json_schema, 2) do
+      mod.to_json_schema(opts, schema_context)
+    else
+      raise "Unsupported type: #{inspect(mod)}, please implement `to_json_schema/1` via `use Instructor.EctoType`"
+    end
   end
 
   defp for_type(mod) do
